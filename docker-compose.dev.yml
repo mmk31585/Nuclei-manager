@@ -1,0 +1,19 @@
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: scanner
+      MARIADB_USER: scanner
+      MARIADB_PASSWORD: scanner
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  dbdata:
