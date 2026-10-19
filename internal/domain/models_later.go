@@ -2,43 +2,6 @@ package domain
 
 import "time"
 
-type RunStatus string
-
-const (
-	RunStatusQueued     RunStatus = "queued"
-	RunStatusRunning    RunStatus = "running"
-	RunStatusProcessing RunStatus = "processing"
-	RunStatusCompleted  RunStatus = "completed"
-	RunStatusFailed     RunStatus = "failed"
-	RunStatusTimedOut   RunStatus = "timed_out"
-	RunStatusStopped    RunStatus = "stopped"
-	RunStatusCancelled  RunStatus = "cancelled"
-)
-
-// Run represents a nuclei scan execution. Model only (no methods), for AutoMigrate.
-type Run struct {
-	ID               uint       `json:"id" gorm:"primaryKey"`
-	TaskID           uint       `json:"task_id" gorm:"index;not null"`
-	Status           RunStatus  `json:"status" gorm:"size:24;index;not null"`
-	StartedAt        *time.Time `json:"started_at"`
-	FinishedAt       *time.Time `json:"finished_at"`
-	ExitCode         *int       `json:"exit_code"`
-	CommandLine      string     `json:"command_line" gorm:"type:text"`
-	NucleiVersion    string     `json:"nuclei_version"`
-	TemplatesVersion string     `json:"templates_version"`
-	TargetsCount     int        `json:"targets_count"`
-	RequestsCount    int        `json:"requests_count"`
-	FindingsCritical int        `json:"findings_critical"`
-	FindingsHigh     int        `json:"findings_high"`
-	FindingsMedium   int        `json:"findings_medium"`
-	FindingsLow      int        `json:"findings_low"`
-	FindingsInfo     int        `json:"findings_info"`
-	LogPath          string     `json:"log_path" gorm:"size:512"`
-	RawOutputPath    string     `json:"raw_output_path" gorm:"size:512"`
-	ErrorMessage     string     `json:"error_message" gorm:"type:text"`
-	CreatedAt        time.Time  `json:"created_at"`
-}
-
 type FindingStatus string
 
 const (
