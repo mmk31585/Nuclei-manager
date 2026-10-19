@@ -18,7 +18,7 @@ func invalid(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrValidation, fmt.Sprintf(format, args...))
 }
 
-// StringList is stored as a JSON array in a TEXT column.
+// StringList is a JSON array of strings persisted in a single TEXT column.
 type StringList []string
 
 func (s StringList) Value() (driver.Value, error) {
@@ -70,6 +70,7 @@ func cleanList(in []string) StringList {
 	return out
 }
 
+// Severity is a Nuclei finding severity.
 type Severity string
 
 const (

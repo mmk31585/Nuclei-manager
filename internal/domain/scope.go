@@ -6,19 +6,30 @@ import (
 	"time"
 )
 
+// ScopeKind is the type of a scope allowlist entry.
 type ScopeKind string
 
 const (
+	// ScopeDomain is a domain such as example.com (subdomains are included).
 	ScopeDomain ScopeKind = "domain"
-	ScopeCIDR   ScopeKind = "cidr"
-	ScopeIP     ScopeKind = "ip"
+	// ScopeCIDR is an IP range such as 10.0.0.0/24.
+	ScopeCIDR ScopeKind = "cidr"
+	// ScopeIP is a single IP address such as 10.1.2.3.
+	ScopeIP ScopeKind = "ip"
 )
 
+// ScopeEntry is one allowlist entry. An empty allowlist rejects every target
+// (fail-closed).
 type ScopeEntry struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	Kind      ScopeKind `json:"kind" gorm:"size:16;not null"`
-	Value     string    `json:"value" gorm:"size:191;uniqueIndex;not null"`
-	Comment   string    `json:"comment" gorm:"type:text"`
+	// Scope entry identifier (read-only)
+	ID uint `json:"id" gorm:"primaryKey"`
+	// Entry type: domain, cidr or ip
+	Kind ScopeKind `json:"kind" gorm:"size:16;not null"`
+	// Entry value, normalized on write (domain lowercased, CIDR/IP canonicalized)
+	Value string `json:"value" gorm:"size:191;uniqueIndex;not null"`
+	// Optional free-text comment
+	Comment string `json:"comment" gorm:"type:text"`
+	// Creation timestamp (read-only)
 	CreatedAt time.Time `json:"created_at"`
 }
 

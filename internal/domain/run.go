@@ -8,17 +8,26 @@ import (
 	"time"
 )
 
+// RunStatus is the lifecycle state of a run.
 type RunStatus string
 
 const (
-	RunQueued     RunStatus = "queued"
-	RunRunning    RunStatus = "running"
-	RunProcessing RunStatus = "processing" // reserved for the findings phase; unused now
-	RunCompleted  RunStatus = "completed"
-	RunFailed     RunStatus = "failed"
-	RunTimedOut   RunStatus = "timed_out"
-	RunStopped    RunStatus = "stopped"
-	RunCancelled  RunStatus = "cancelled"
+	// RunQueued is waiting to be claimed by a worker.
+	RunQueued RunStatus = "queued"
+	// RunRunning is actively executing.
+	RunRunning RunStatus = "running"
+	// RunProcessing is reserved for the findings phase; unused now.
+	RunProcessing RunStatus = "processing"
+	// RunCompleted finished successfully.
+	RunCompleted RunStatus = "completed"
+	// RunFailed finished with an error.
+	RunFailed RunStatus = "failed"
+	// RunTimedOut exceeded the maximum duration.
+	RunTimedOut RunStatus = "timed_out"
+	// RunStopped was stopped by a user.
+	RunStopped RunStatus = "stopped"
+	// RunCancelled was cancelled while still queued.
+	RunCancelled RunStatus = "cancelled"
 )
 
 func (s RunStatus) Valid() bool {

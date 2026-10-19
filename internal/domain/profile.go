@@ -5,27 +5,49 @@ import (
 	"time"
 )
 
+// Profile selects and tunes the Nuclei scan. Built-in profiles are seeded at
+// startup and are read-only.
 type Profile struct {
-	ID             uint       `json:"id" gorm:"primaryKey"`
-	Name           string     `json:"name" gorm:"size:191;uniqueIndex;not null"`
-	Description    string     `json:"description" gorm:"type:text"`
-	Tags           StringList `json:"tags" gorm:"type:text;not null"`
-	ExcludeTags    StringList `json:"exclude_tags" gorm:"type:text;not null"`
-	Severity       StringList `json:"severity" gorm:"type:text;not null"`
-	Protocols      StringList `json:"protocols" gorm:"type:text;not null"`
-	TemplateIDs    StringList `json:"template_ids" gorm:"type:text;not null"`
-	CustomSet      string     `json:"custom_set" gorm:"size:191"`
-	RateLimit      int        `json:"rate_limit"`
-	Concurrency    int        `json:"concurrency"`
-	BulkSize       int        `json:"bulk_size"`
-	TimeoutSec     int        `json:"timeout_sec"`
-	Retries        int        `json:"retries"`
-	MaxHostError   int        `json:"max_host_error"`
-	MaxDurationMin int        `json:"max_duration_min"`
-	OAST           bool       `json:"oast"`
-	Builtin        bool       `json:"builtin"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	// Profile identifier (read-only)
+	ID uint `json:"id" gorm:"primaryKey"`
+	// Unique profile name (1-191 characters)
+	Name string `json:"name" gorm:"size:191;uniqueIndex;not null"`
+	// Optional free-text description
+	Description string `json:"description" gorm:"type:text"`
+	// Only run templates with at least one of these tags
+	Tags StringList `json:"tags" gorm:"type:text;not null"`
+	// Exclude templates carrying any of these tags
+	ExcludeTags StringList `json:"exclude_tags" gorm:"type:text;not null"`
+	// Only run templates of these severities
+	Severity StringList `json:"severity" gorm:"type:text;not null"`
+	// Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)
+	Protocols StringList `json:"protocols" gorm:"type:text;not null"`
+	// Restrict to these exact template IDs
+	TemplateIDs StringList `json:"template_ids" gorm:"type:text;not null"`
+	// Name of an external custom template set directory
+	CustomSet string `json:"custom_set" gorm:"size:191"`
+	// Requests per second (1-10000, defaults to 50)
+	RateLimit int `json:"rate_limit"`
+	// Concurrent requests (1-500, defaults to 25)
+	Concurrency int `json:"concurrency"`
+	// Bulk size (1-500, defaults to 25)
+	BulkSize int `json:"bulk_size"`
+	// Per-request timeout in seconds (1-300, defaults to 10)
+	TimeoutSec int `json:"timeout_sec"`
+	// Retries per request (0-10, defaults to 1)
+	Retries int `json:"retries"`
+	// Max errors per host before skipping it (1-1000, defaults to 30)
+	MaxHostError int `json:"max_host_error"`
+	// Max total scan duration in minutes (1-1440, defaults to 120)
+	MaxDurationMin int `json:"max_duration_min"`
+	// Enable OAST interaction callbacks
+	OAST bool `json:"oast"`
+	// True for seeded built-in profiles (read-only, defaults to false)
+	Builtin bool `json:"builtin"`
+	// Creation timestamp (read-only)
+	CreatedAt time.Time `json:"created_at"`
+	// Last update timestamp (read-only)
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // ApplyDefaults fills zero-valued int fields with the phase defaults.
