@@ -50,6 +50,8 @@ make smoke-run  # Phase 2 run smoke test (needs nuclei + lab)
 | `SM_CUSTOM_TEMPLATES_DIR` | `./custom-templates` | Root of custom template folders |
 | `SM_MAX_CONCURRENT_RUNS` | `2` | Worker pool size (1–16) |
 | `SM_WORKER_POLL` | `2s` | Worker poll interval (≥ 500ms) |
+| `SM_SWAGGER_HOST` | `localhost` | Host shown in Swagger UI for "Try it out" requests. Defaults to `localhost:<SM_HTTP_ADDR port>`; set e.g. `scan.example.com:8443` for a deployment. |
+| `SM_SWAGGER_BASE_PATH` | `/api/v1` | Base path used by Swagger UI requests. |
 
 ## Endpoints
 
@@ -61,6 +63,27 @@ make smoke-run  # Phase 2 run smoke test (needs nuclei + lab)
 - Runs: `POST /api/v1/tasks/:id/run`, `GET /api/v1/runs`, `GET /api/v1/runs/:id`, `POST /api/v1/runs/:id/stop`, `GET /api/v1/runs/:id/log`, `GET /api/v1/runs/:id/output`
 
 No auth; keep the API bound to localhost.
+
+## API documentation (Swagger UI)
+
+The OpenAPI spec is generated from the source annotations (`swag init`) and served
+live by the API:
+
+- Swagger UI: `http://127.0.0.1:8080/swagger/index.html`
+- OpenAPI JSON: `http://127.0.0.1:8080/swagger/doc.json`
+- OpenAPI YAML: `http://127.0.0.1:8080/swagger/doc.yaml`
+- Static copies: `docs/swagger.json`, `docs/swagger.yaml`
+
+The host used by the UI for **Try it out** requests is configurable. By default it
+is `localhost` plus the `SM_HTTP_ADDR` port (e.g. `localhost:8080`); set
+`SM_SWAGGER_HOST` to a full `host:port` to override it (e.g. `scan.example.com:8443`).
+
+Regenerate the spec after changing annotations:
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+swag init -g cmd/scanner-manager/main.go -o docs --parseInternal --parseDependency
+```
 
 ## Makefile targets
 

@@ -811,6 +811,216 @@ const docTemplate = `{
                 }
             }
         },
+        "/tasks": {
+            "get": {
+                "description": "Returns all tasks ordered by id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "List tasks",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Task"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a task binding a target to a profile. Both must already exist.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "Create a task",
+                "parameters": [
+                    {
+                        "description": "Task to create",
+                        "name": "task",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.taskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Task"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid payload or unknown target_id/profile_id",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tasks/{id}": {
+            "get": {
+                "description": "Returns a single task by id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "Get a task",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Task"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Full replacement of a task by id. The referenced target and profile must exist.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "Replace a task",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Replacement task",
+                        "name": "task",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.taskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Task"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid payload or unknown target_id/profile_id",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a task by id. Returns 409 when the task has an active (queued or running) run.",
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "Delete a task",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Task has an active run",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tasks/{id}/run": {
             "post": {
                 "description": "Validates the task's target/profile against the scope, freezes a config snapshot and queues a run. The worker picks it up and executes Nuclei.",
@@ -1078,6 +1288,17 @@ const docTemplate = `{
                 "RunCancelled"
             ]
         },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.ScheduleType": {
+            "type": "string",
+            "enum": [
+                "once",
+                "cron"
+            ],
+            "x-enum-varnames": [
+                "ScheduleOnce",
+                "ScheduleCron"
+            ]
+        },
         "github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry": {
             "type": "object",
             "properties": {
@@ -1118,6 +1339,23 @@ const docTemplate = `{
                 "ScopeDomain",
                 "ScopeCIDR",
                 "ScopeIP"
+            ]
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.Severity": {
+            "type": "string",
+            "enum": [
+                "info",
+                "low",
+                "medium",
+                "high",
+                "critical"
+            ],
+            "x-enum-varnames": [
+                "SeverityInfo",
+                "SeverityLow",
+                "SeverityMedium",
+                "SeverityHigh",
+                "SeverityCritical"
             ]
         },
         "github_com_mmk31585_Nuclei-manager_internal_domain.Target": {
@@ -1163,6 +1401,86 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "updated_at": {
+                    "description": "Last update timestamp (read-only)",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.Task": {
+            "type": "object",
+            "properties": {
+                "add_to_assets": {
+                    "description": "Add discovered hosts to the asset inventory",
+                    "type": "boolean"
+                },
+                "apply_suppressions": {
+                    "description": "Apply configured suppressions to findings",
+                    "type": "boolean"
+                },
+                "comment": {
+                    "description": "Optional free-text comment",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Creation timestamp (read-only)",
+                    "type": "string"
+                },
+                "cron_expr": {
+                    "description": "Cron expression, required when schedule_type is cron",
+                    "type": "string"
+                },
+                "enabled": {
+                    "description": "Whether the schedule is enabled",
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Task identifier (read-only)",
+                    "type": "integer"
+                },
+                "min_severity": {
+                    "description": "Minimum severity reported by this task (defaults to medium)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Severity"
+                        }
+                    ]
+                },
+                "name": {
+                    "description": "Unique task name (1-191 characters)",
+                    "type": "string"
+                },
+                "notify_on": {
+                    "description": "Severities that trigger a notification",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "profile_id": {
+                    "description": "Identifier of the profile to use (must exist)",
+                    "type": "integer"
+                },
+                "retention_keep_last": {
+                    "description": "Number of most recent runs to retain (1-1000, defaults to 20)",
+                    "type": "integer"
+                },
+                "schedule_type": {
+                    "description": "Schedule type: once or cron (defaults to once)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScheduleType"
+                        }
+                    ]
+                },
+                "target_id": {
+                    "description": "Identifier of the target to scan (must exist)",
+                    "type": "integer"
+                },
+                "timezone": {
+                    "description": "IANA timezone for the schedule (defaults to UTC)",
+                    "type": "string"
                 },
                 "updated_at": {
                     "description": "Last update timestamp (read-only)",
@@ -1387,6 +1705,87 @@ const docTemplate = `{
                     ]
                 }
             }
+        },
+        "internal_api.taskRequest": {
+            "type": "object",
+            "properties": {
+                "add_to_assets": {
+                    "description": "Add discovered hosts to the asset inventory",
+                    "type": "boolean"
+                },
+                "apply_suppressions": {
+                    "description": "Apply configured suppressions to findings",
+                    "type": "boolean"
+                },
+                "comment": {
+                    "description": "Optional comment",
+                    "type": "string",
+                    "example": "Nightly staging scan"
+                },
+                "cron_expr": {
+                    "description": "Cron expression, required when schedule_type is cron",
+                    "type": "string",
+                    "example": "0 2 * * *"
+                },
+                "enabled": {
+                    "description": "Whether the schedule is enabled",
+                    "type": "boolean"
+                },
+                "min_severity": {
+                    "description": "Minimum severity reported",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Severity"
+                        }
+                    ],
+                    "example": "medium"
+                },
+                "name": {
+                    "description": "Unique task name",
+                    "type": "string",
+                    "example": "nightly-staging"
+                },
+                "notify_on": {
+                    "description": "Severities that trigger a notification",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "high",
+                        "critical"
+                    ]
+                },
+                "profile_id": {
+                    "description": "Profile to use (must exist)",
+                    "type": "integer",
+                    "example": 1
+                },
+                "retention_keep_last": {
+                    "description": "Number of most recent runs to retain (1-1000)",
+                    "type": "integer",
+                    "example": 20
+                },
+                "schedule_type": {
+                    "description": "Schedule type: once or cron",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScheduleType"
+                        }
+                    ],
+                    "example": "cron"
+                },
+                "target_id": {
+                    "description": "Target to scan (must exist)",
+                    "type": "integer",
+                    "example": 1
+                },
+                "timezone": {
+                    "description": "IANA timezone for the schedule",
+                    "type": "string",
+                    "example": "UTC"
+                }
+            }
         }
     },
     "tags": [
@@ -1416,7 +1815,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "0.1",
-	Host:             "127.0.0.1:8080",
+	Host:             "localhost",
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http"},
 	Title:            "scanner-manager API",

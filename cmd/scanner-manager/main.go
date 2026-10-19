@@ -35,7 +35,7 @@ import (
 // @contact.url                https://github.com/mmk31585/Nuclei-manager
 // @license.name               MIT
 // @license.url                https://opensource.org/licenses/MIT
-// @host                       127.0.0.1:8080
+// @host                       localhost
 // @BasePath                   /api/v1
 // @schemes                    http
 // @accept                     json
@@ -113,16 +113,18 @@ func run() error {
 	wk.Start(ctx)
 
 	router := api.NewRouter(api.Deps{
-		Ping:      st.Ping,
-		Scope:     scopeSvc,
-		ScopeRepo: st.Scope,
-		Targets:   st.Targets,
-		Profiles:  st.Profiles,
-		Tasks:     st.Tasks,
-		Runs:      runSvc,
-		RunRepo:   st.Runs,
-		Stopper:   wk,
-		DataDir:   cfg.DataDir,
+		Ping:            st.Ping,
+		Scope:           scopeSvc,
+		ScopeRepo:       st.Scope,
+		Targets:         st.Targets,
+		Profiles:        st.Profiles,
+		Tasks:           st.Tasks,
+		Runs:            runSvc,
+		RunRepo:         st.Runs,
+		Stopper:         wk,
+		DataDir:         cfg.DataDir,
+		SwaggerHost:     cfg.SwaggerHost,
+		SwaggerBasePath: cfg.SwaggerBasePath,
 	})
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 10 * time.Second}
 

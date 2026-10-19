@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,20 +30,34 @@ func (h *TaskHandler) Register(rg *gin.RouterGroup) {
 	g.DELETE("/:id", h.Delete)
 }
 
+// taskRequest is the request body for creating or replacing a task.
 type taskRequest struct {
-	Name              string              `json:"name"`
-	Comment           string              `json:"comment"`
-	TargetID          uint                `json:"target_id"`
-	ProfileID         uint                `json:"profile_id"`
-	ScheduleType      domain.ScheduleType `json:"schedule_type"`
-	CronExpr          string              `json:"cron_expr"`
-	Timezone          string              `json:"timezone"`
-	MinSeverity       domain.Severity     `json:"min_severity"`
-	AddToAssets       *bool               `json:"add_to_assets"`
-	ApplySuppressions *bool               `json:"apply_suppressions"`
-	Enabled           *bool               `json:"enabled"`
-	RetentionKeepLast int                 `json:"retention_keep_last"`
-	NotifyOn          []string            `json:"notify_on"`
+	// Unique task name
+	Name string `json:"name" example:"nightly-staging"`
+	// Optional comment
+	Comment string `json:"comment" example:"Nightly staging scan"`
+	// Target to scan (must exist)
+	TargetID uint `json:"target_id" example:"1"`
+	// Profile to use (must exist)
+	ProfileID uint `json:"profile_id" example:"1"`
+	// Schedule type: once or cron
+	ScheduleType domain.ScheduleType `json:"schedule_type" example:"cron"`
+	// Cron expression, required when schedule_type is cron
+	CronExpr string `json:"cron_expr" example:"0 2 * * *"`
+	// IANA timezone for the schedule
+	Timezone string `json:"timezone" example:"UTC"`
+	// Minimum severity reported
+	MinSeverity domain.Severity `json:"min_severity" example:"medium"`
+	// Add discovered hosts to the asset inventory
+	AddToAssets *bool `json:"add_to_assets"`
+	// Apply configured suppressions to findings
+	ApplySuppressions *bool `json:"apply_suppressions"`
+	// Whether the schedule is enabled
+	Enabled *bool `json:"enabled"`
+	// Number of most recent runs to retain (1-1000)
+	RetentionKeepLast int `json:"retention_keep_last" example:"20"`
+	// Severities that trigger a notification
+	NotifyOn []string `json:"notify_on" example:"high,critical"`
 }
 
 func (r taskRequest) apply(t *domain.Task) {
@@ -67,6 +82,14 @@ func (r taskRequest) apply(t *domain.Task) {
 	t.NotifyOn = r.NotifyOn
 }
 
+// List godoc
+// @Summary      List tasks
+// @Description  Returns all tasks ordered by id.
+// @Tags         tasks
+// @Produce      json
+// @Success      200  {array}   domain.Task
+// @Failure      500  {object}  ErrorResponse
+// @Router       /tasks [get]
 func (h *TaskHandler) List(c *gin.Context) {
 	out, err := h.repo.List(c.Request.Context())
 	if err != nil {
@@ -76,6 +99,16 @@ func (h *TaskHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// Get godoc
+// @Summary      Get a task
+// @Description  Returns a single task by id.
+// @Tags         tasks
+// @Produce      json
+// @Param        id   path      int  true  "Task ID"
+// @Success      200  {object}  domain.Task
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /tasks/{id} [get]
 func (h *TaskHandler) Get(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -89,19 +122,9 @@ func (h *TaskHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
-func (h *TaskHandler) Create(c *gin.Context) {
-	var req taskRequest
-	if !bindJSON(c, &req) {
-		return
-	}
-	var t domain.Task
-	req.apply(&t)
-	t.ApplyDefaults()
-	if err := t.Validate(); err != nil {
-		writeError(c, err)
-		return
-	}
-	ctx := c.Request.Context()
+// save verifies that the referenced target and profile exist, then persists the
+// task. It is shared by Create and Update.
+func (h *TaskHandler) save(ctx context.Context, t *domain.Task, c *gin.Context) {
 	if _, err := h.targets.Get(ctx, t.TargetID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			writeError(c, fmt.Errorf("%w: target_id does not exist", domain.ErrValidation))
@@ -118,13 +141,52 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		}
 		return
 	}
-	if err := h.repo.Create(ctx, &t); err != nil {
+	if err := h.repo.Create(ctx, t); err != nil {
 		writeError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, t)
 }
 
+// Create godoc
+// @Summary      Create a task
+// @Description  Creates a task binding a target to a profile. Both must already exist.
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        task  body      taskRequest  true  "Task to create"
+// @Success      201   {object}  domain.Task
+// @Failure      400   {object}  ErrorResponse  "Invalid payload or unknown target_id/profile_id"
+// @Failure      409   {object}  ErrorResponse
+// @Router       /tasks [post]
+func (h *TaskHandler) Create(c *gin.Context) {
+	var req taskRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	var t domain.Task
+	req.apply(&t)
+	t.ApplyDefaults()
+	if err := t.Validate(); err != nil {
+		writeError(c, err)
+		return
+	}
+	h.save(c.Request.Context(), &t, c)
+}
+
+// Update godoc
+// @Summary      Replace a task
+// @Description  Full replacement of a task by id. The referenced target and profile must exist.
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int          true  "Task ID"
+// @Param        task  body      taskRequest  true  "Replacement task"
+// @Success      200   {object}  domain.Task
+// @Failure      400   {object}  ErrorResponse  "Invalid payload or unknown target_id/profile_id"
+// @Failure      404   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse
+// @Router       /tasks/{id} [put]
 func (h *TaskHandler) Update(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -169,6 +231,16 @@ func (h *TaskHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
+// Delete godoc
+// @Summary      Delete a task
+// @Description  Deletes a task by id. Returns 409 when the task has an active (queued or running) run.
+// @Tags         tasks
+// @Param        id   path      int  true  "Task ID"
+// @Success      204
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse  "Task has an active run"
+// @Router       /tasks/{id} [delete]
 func (h *TaskHandler) Delete(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {

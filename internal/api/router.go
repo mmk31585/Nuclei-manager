@@ -9,23 +9,25 @@ import (
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	_ "github.com/mmk31585/Nuclei-manager/docs"
+	docs "github.com/mmk31585/Nuclei-manager/docs"
 	"github.com/mmk31585/Nuclei-manager/internal/domain"
 	"github.com/mmk31585/Nuclei-manager/internal/runs"
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
 )
 
 type Deps struct {
-	Ping      func(ctx context.Context) error
-	Scope     *scope.Service
-	ScopeRepo domain.ScopeRepo
-	Targets   domain.TargetRepo
-	Profiles  domain.ProfileRepo
-	Tasks     domain.TaskRepo
-	Runs      *runs.Service
-	RunRepo   domain.RunRepo
-	Stopper   interface{ Stop(id uint) error }
-	DataDir   string
+	Ping            func(ctx context.Context) error
+	Scope           *scope.Service
+	ScopeRepo       domain.ScopeRepo
+	Targets         domain.TargetRepo
+	Profiles        domain.ProfileRepo
+	Tasks           domain.TaskRepo
+	Runs            *runs.Service
+	RunRepo         domain.RunRepo
+	Stopper         interface{ Stop(id uint) error }
+	DataDir         string
+	SwaggerHost     string
+	SwaggerBasePath string
 }
 
 func NewRouter(d Deps) *gin.Engine {
@@ -43,14 +45,22 @@ func NewRouter(d Deps) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// Interactive OpenAPI documentation (Swagger UI).
+	// Interactive OpenAPI documentation (Swagger UI). The host/basePath used by
+	// the UI for "Try it out" requests are configurable (SM_SWAGGER_HOST,
+	// SM_SWAGGER_BASE_PATH) and default to localhost.
+	if d.SwaggerHost != "" {
+		docs.SwaggerInfo.Host = d.SwaggerHost
+	}
+	if d.SwaggerBasePath != "" {
+		docs.SwaggerInfo.BasePath = d.SwaggerBasePath
+	}
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	v1 := r.Group("/api/v1")
 	NewScopeHandler(d.ScopeRepo).Register(v1)
 	NewTargetHandler(d.Targets, d.Scope).Register(v1)
 	NewProfileHandler(d.Profiles).Register(v1)
-	NewTaskHandler(d.Tasks, d.Targets, d.Profiles).Register(v1)
 	NewRunHandler(d.Runs, d.RunRepo, d.Stopper, d.DataDir).Register(v1)
+	NewTaskHandler(d.Tasks, d.Targets, d.Profiles).Register(v1)
 	return r
 }
