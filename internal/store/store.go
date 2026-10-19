@@ -18,6 +18,7 @@ type Store struct {
 	Targets  *TargetRepo
 	Profiles *ProfileRepo
 	Tasks    *TaskRepo
+	Runs     *RunRepo
 }
 
 func Open(dsn string) (*Store, error) {
@@ -46,6 +47,7 @@ func Open(dsn string) (*Store, error) {
 		Targets:  NewTargetRepo(db),
 		Profiles: NewProfileRepo(db),
 		Tasks:    NewTaskRepo(db),
+		Runs:     NewRunRepo(db),
 	}, nil
 }
 

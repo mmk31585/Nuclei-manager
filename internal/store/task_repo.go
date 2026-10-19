@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -37,6 +38,15 @@ func (r *TaskRepo) Update(ctx context.Context, t *domain.Task) error {
 }
 
 func (r *TaskRepo) Delete(ctx context.Context, id uint) error {
+	var active int64
+	if err := r.db.WithContext(ctx).Model(&domain.Run{}).
+		Where("task_id = ? AND status IN ?", id, []domain.RunStatus{domain.RunQueued, domain.RunRunning}).
+		Count(&active).Error; err != nil {
+		return err
+	}
+	if active > 0 {
+		return fmt.Errorf("%w: task has an active run", domain.ErrConflict)
+	}
 	res := r.db.WithContext(ctx).Delete(&domain.Task{}, id)
 	if res.Error != nil {
 		return mapErr(res.Error)
