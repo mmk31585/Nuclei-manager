@@ -38,6 +38,7 @@ func NewRouter(d Deps) *gin.Engine {
 	v1 := r.Group("/api/v1")
 	NewScopeHandler(d.ScopeRepo).Register(v1)
 	NewTargetHandler(d.Targets, d.Scope).Register(v1)
-	// Remaining handlers are registered as each endpoint task lands (T7-T8).
+	NewProfileHandler(d.Profiles).Register(v1)
+	// Remaining handlers are registered as each endpoint task lands (T8).
 	return r
 }
