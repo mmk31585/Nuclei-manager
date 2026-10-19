@@ -122,30 +122,21 @@ func (h *TaskHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
-// save verifies that the referenced target and profile exist, then persists the
-// task. It is shared by Create and Update.
-func (h *TaskHandler) save(ctx context.Context, t *domain.Task, c *gin.Context) {
+// checkRefs verifies that the referenced target and profile exist.
+func (h *TaskHandler) checkRefs(ctx context.Context, t *domain.Task) error {
 	if _, err := h.targets.Get(ctx, t.TargetID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			writeError(c, fmt.Errorf("%w: target_id does not exist", domain.ErrValidation))
-		} else {
-			writeError(c, err)
+			return fmt.Errorf("%w: target_id does not exist", domain.ErrValidation)
 		}
-		return
+		return err
 	}
 	if _, err := h.profiles.Get(ctx, t.ProfileID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			writeError(c, fmt.Errorf("%w: profile_id does not exist", domain.ErrValidation))
-		} else {
-			writeError(c, err)
+			return fmt.Errorf("%w: profile_id does not exist", domain.ErrValidation)
 		}
-		return
+		return err
 	}
-	if err := h.repo.Create(ctx, t); err != nil {
-		writeError(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, t)
+	return nil
 }
 
 // Create godoc
@@ -171,7 +162,15 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	h.save(c.Request.Context(), &t, c)
+	if err := h.checkRefs(c.Request.Context(), &t); err != nil {
+		writeError(c, err)
+		return
+	}
+	if err := h.repo.Create(c.Request.Context(), &t); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, t)
 }
 
 // Update godoc
@@ -208,20 +207,8 @@ func (h *TaskHandler) Update(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	if _, err := h.targets.Get(ctx, t.TargetID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			writeError(c, fmt.Errorf("%w: target_id does not exist", domain.ErrValidation))
-		} else {
-			writeError(c, err)
-		}
-		return
-	}
-	if _, err := h.profiles.Get(ctx, t.ProfileID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			writeError(c, fmt.Errorf("%w: profile_id does not exist", domain.ErrValidation))
-		} else {
-			writeError(c, err)
-		}
+	if err := h.checkRefs(ctx, t); err != nil {
+		writeError(c, err)
 		return
 	}
 	if err := h.repo.Update(ctx, t); err != nil {
