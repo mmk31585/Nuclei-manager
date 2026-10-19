@@ -51,31 +51,57 @@ const (
 	TriggerSchedule = "schedule"
 )
 
+// Run is one execution of a task. It records the command, versions, timing and
+// finding counters produced by Nuclei.
 type Run struct {
-	ID               uint       `json:"id" gorm:"primaryKey"`
-	TaskID           uint       `json:"task_id" gorm:"index;not null"`
-	Status           RunStatus  `json:"status" gorm:"size:24;index;not null"`
-	Trigger          string     `json:"trigger" gorm:"size:16;not null"`
-	StartedAt        *time.Time `json:"started_at"`
-	FinishedAt       *time.Time `json:"finished_at"`
-	ExitCode         *int       `json:"exit_code"`
-	CommandLine      string     `json:"command_line" gorm:"type:text"`
-	NucleiVersion    string     `json:"nuclei_version" gorm:"size:64"`
-	TemplatesVersion string     `json:"templates_version" gorm:"size:64"`
-	TargetsCount     int        `json:"targets_count"`
-	RequestsCount    int        `json:"requests_count"` // not populated yet
-	ResultsTotal     int        `json:"results_total"`
-	FindingsCritical int        `json:"findings_critical"`
-	FindingsHigh     int        `json:"findings_high"`
-	FindingsMedium   int        `json:"findings_medium"`
-	FindingsLow      int        `json:"findings_low"`
-	FindingsInfo     int        `json:"findings_info"` // info + unknown severities
-	ParseErrors      int        `json:"parse_errors"`
-	LogPath          string     `json:"log_path" gorm:"size:512"`
-	RawOutputPath    string     `json:"raw_output_path" gorm:"size:512"`
-	ErrorMessage     string     `json:"error_message" gorm:"type:text"`
-	ConfigSnapshot   string     `json:"-" gorm:"type:longtext"`
-	CreatedAt        time.Time  `json:"created_at"`
+	// Run identifier (read-only)
+	ID uint `json:"id" gorm:"primaryKey"`
+	// Identifier of the task that produced this run
+	TaskID uint `json:"task_id" gorm:"index;not null"`
+	// Current lifecycle status (see RunStatus)
+	Status RunStatus `json:"status" gorm:"size:24;index;not null"`
+	// How the run was started: manual or schedule
+	Trigger string `json:"trigger" gorm:"size:16;not null"`
+	// Start time (null until claimed)
+	StartedAt *time.Time `json:"started_at"`
+	// Finish time (null until terminal)
+	FinishedAt *time.Time `json:"finished_at"`
+	// Nuclei process exit code (null if not run)
+	ExitCode *int `json:"exit_code"`
+	// Full nuclei command line that was executed
+	CommandLine string `json:"command_line" gorm:"type:text"`
+	// Detected nuclei engine version
+	NucleiVersion string `json:"nuclei_version" gorm:"size:64"`
+	// Detected nuclei templates version
+	TemplatesVersion string `json:"templates_version" gorm:"size:64"`
+	// Number of targets in the run
+	TargetsCount int `json:"targets_count"`
+	// Number of requests issued (not populated yet)
+	RequestsCount int `json:"requests_count"`
+	// Total findings reported
+	ResultsTotal int `json:"results_total"`
+	// Critical findings
+	FindingsCritical int `json:"findings_critical"`
+	// High findings
+	FindingsHigh int `json:"findings_high"`
+	// Medium findings
+	FindingsMedium int `json:"findings_medium"`
+	// Low findings
+	FindingsLow int `json:"findings_low"`
+	// Info findings plus unknown severities
+	FindingsInfo int `json:"findings_info"`
+	// Lines that failed to parse
+	ParseErrors int `json:"parse_errors"`
+	// Path to the captured log file
+	LogPath string `json:"log_path" gorm:"size:512"`
+	// Path to the raw nuclei output file
+	RawOutputPath string `json:"raw_output_path" gorm:"size:512"`
+	// Error message when the run failed
+	ErrorMessage string `json:"error_message" gorm:"type:text"`
+	// Frozen configuration snapshot (not exposed over the API)
+	ConfigSnapshot string `json:"-" gorm:"type:longtext"`
+	// Creation timestamp (read-only)
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type RunCounters struct {

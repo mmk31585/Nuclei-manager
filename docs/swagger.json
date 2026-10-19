@@ -1,0 +1,973 @@
+{
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "REST API for managing Nuclei vulnerability scans.\nThe service validates every target against a configurable scope allowlist,\nexposes scan profiles (built-in and custom), and stores tasks that bind a\ntarget to a profile. It is the control plane for a planned worker that\nexecutes Nuclei and stores runs and findings.",
+        "title": "scanner-manager API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "scanner-manager",
+            "url": "https://github.com/mmk31585/Nuclei-manager"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "0.1"
+    },
+    "host": "127.0.0.1:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/profiles": {
+            "get": {
+                "description": "Returns all scan profiles ordered by id, including the seeded built-in profiles.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "List profiles",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a custom profile. Zero-valued numeric fields are filled with defaults before validation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Create a profile",
+                "parameters": [
+                    {
+                        "description": "Profile to create",
+                        "name": "profile",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.profileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/profiles/{id}": {
+            "get": {
+                "description": "Returns a single profile by id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Get a profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Full replacement of a custom profile by id. Built-in profiles are read-only and return 409.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Replace a profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Replacement profile",
+                        "name": "profile",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.profileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Built-in profiles are read-only",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a custom profile by id. Built-in profiles and profiles referenced by tasks return 409.",
+                "tags": [
+                    "profiles"
+                ],
+                "summary": "Delete a profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Built-in profile or profile in use",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/scope": {
+            "get": {
+                "description": "Returns all scope allowlist entries ordered by id. An empty allowlist makes the target check fail-closed.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scope"
+                ],
+                "summary": "List scope entries",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Adds a domain, CIDR or IP to the allowlist. Values are normalized and validated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scope"
+                ],
+                "summary": "Create a scope entry",
+                "parameters": [
+                    {
+                        "description": "Scope entry to create",
+                        "name": "entry",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.scopeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/scope/{id}": {
+            "delete": {
+                "description": "Removes a scope entry by id.",
+                "tags": [
+                    "scope"
+                ],
+                "summary": "Delete a scope entry",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Scope entry ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/targets": {
+            "get": {
+                "description": "Returns all targets ordered by id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "targets"
+                ],
+                "summary": "List targets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a target after validating it and enforcing the scope allowlist on every host. Rejects out-of-scope hosts with 422.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "targets"
+                ],
+                "summary": "Create a target",
+                "parameters": [
+                    {
+                        "description": "Target to create",
+                        "name": "target",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.targetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "One or more hosts are outside the allowed scope",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/targets/{id}": {
+            "get": {
+                "description": "Returns a single target by id.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "targets"
+                ],
+                "summary": "Get a target",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Target ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Full replacement of a target by id. The new host list is re-validated against the scope allowlist.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "targets"
+                ],
+                "summary": "Replace a target",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Target ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Replacement target",
+                        "name": "target",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.targetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "One or more hosts are outside the allowed scope",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a target by id. Returns 409 when one or more tasks reference it.",
+                "tags": [
+                    "targets"
+                ],
+                "summary": "Delete a target",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Target ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Target is used by one or more tasks",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_mmk31585_Nuclei-manager_internal_domain.Profile": {
+            "type": "object",
+            "properties": {
+                "builtin": {
+                    "description": "True for seeded built-in profiles (read-only, defaults to false)",
+                    "type": "boolean"
+                },
+                "bulk_size": {
+                    "description": "Bulk size (1-500, defaults to 25)",
+                    "type": "integer"
+                },
+                "concurrency": {
+                    "description": "Concurrent requests (1-500, defaults to 25)",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "description": "Creation timestamp (read-only)",
+                    "type": "string"
+                },
+                "custom_set": {
+                    "description": "Name of an external custom template set directory",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Optional free-text description",
+                    "type": "string"
+                },
+                "exclude_tags": {
+                    "description": "Exclude templates carrying any of these tags",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "description": "Profile identifier (read-only)",
+                    "type": "integer"
+                },
+                "max_duration_min": {
+                    "description": "Max total scan duration in minutes (1-1440, defaults to 120)",
+                    "type": "integer"
+                },
+                "max_host_error": {
+                    "description": "Max errors per host before skipping it (1-1000, defaults to 30)",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Unique profile name (1-191 characters)",
+                    "type": "string"
+                },
+                "oast": {
+                    "description": "Enable OAST interaction callbacks",
+                    "type": "boolean"
+                },
+                "protocols": {
+                    "description": "Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rate_limit": {
+                    "description": "Requests per second (1-10000, defaults to 50)",
+                    "type": "integer"
+                },
+                "retries": {
+                    "description": "Retries per request (0-10, defaults to 1)",
+                    "type": "integer"
+                },
+                "severity": {
+                    "description": "Only run templates of these severities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tags": {
+                    "description": "Only run templates with at least one of these tags",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "template_ids": {
+                    "description": "Restrict to these exact template IDs",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "timeout_sec": {
+                    "description": "Per-request timeout in seconds (1-300, defaults to 10)",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "Last update timestamp (read-only)",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "description": "Optional free-text comment",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Creation timestamp (read-only)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Scope entry identifier (read-only)",
+                    "type": "integer"
+                },
+                "kind": {
+                    "description": "Entry type: domain, cidr or ip",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeKind"
+                        }
+                    ]
+                },
+                "value": {
+                    "description": "Entry value, normalized on write (domain lowercased, CIDR/IP canonicalized)",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.ScopeKind": {
+            "type": "string",
+            "enum": [
+                "domain",
+                "cidr",
+                "ip"
+            ],
+            "x-enum-varnames": [
+                "ScopeDomain",
+                "ScopeCIDR",
+                "ScopeIP"
+            ]
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.Target": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "description": "Optional free-text comment",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Creation timestamp (read-only)",
+                    "type": "string"
+                },
+                "exclude": {
+                    "description": "Hosts, IPs or CIDRs excluded from the scan",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hosts": {
+                    "description": "Hosts to scan (URLs, host:port, bare hosts or IPs); at least one required",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "description": "Target identifier (read-only, assigned by the server)",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Unique target name (1-191 characters)",
+                    "type": "string"
+                },
+                "probe_first": {
+                    "description": "Probe hosts for reachability before scanning (defaults to true)",
+                    "type": "boolean"
+                },
+                "tags": {
+                    "description": "Arbitrary labels for filtering and grouping",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "updated_at": {
+                    "description": "Last update timestamp (read-only)",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_api.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Human-readable error message",
+                    "type": "string",
+                    "example": "validation failed: name is required"
+                }
+            }
+        },
+        "internal_api.profileRequest": {
+            "type": "object",
+            "properties": {
+                "bulk_size": {
+                    "description": "Bulk size (1-500)",
+                    "type": "integer",
+                    "example": 25
+                },
+                "concurrency": {
+                    "description": "Concurrent requests (1-500)",
+                    "type": "integer",
+                    "example": 25
+                },
+                "custom_set": {
+                    "description": "Name of an external custom template set directory",
+                    "type": "string",
+                    "example": "custom-a"
+                },
+                "description": {
+                    "description": "Optional description",
+                    "type": "string",
+                    "example": "External-facing web checks"
+                },
+                "exclude_tags": {
+                    "description": "Exclude templates carrying any of these tags",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "dos",
+                        "intrusive"
+                    ]
+                },
+                "max_duration_min": {
+                    "description": "Max total scan duration in minutes (1-1440)",
+                    "type": "integer",
+                    "example": 120
+                },
+                "max_host_error": {
+                    "description": "Max errors per host before skipping it (1-1000)",
+                    "type": "integer",
+                    "example": 30
+                },
+                "name": {
+                    "description": "Unique profile name",
+                    "type": "string",
+                    "example": "external-only"
+                },
+                "oast": {
+                    "description": "Enable OAST interaction callbacks",
+                    "type": "boolean"
+                },
+                "protocols": {
+                    "description": "Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "http",
+                        "ssl"
+                    ]
+                },
+                "rate_limit": {
+                    "description": "Requests per second (1-10000)",
+                    "type": "integer",
+                    "example": 50
+                },
+                "retries": {
+                    "description": "Retries per request (0-10)",
+                    "type": "integer",
+                    "example": 1
+                },
+                "severity": {
+                    "description": "Only run templates of these severities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "medium",
+                        "high",
+                        "critical"
+                    ]
+                },
+                "tags": {
+                    "description": "Only run templates with at least one of these tags",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "cve",
+                        "exposure"
+                    ]
+                },
+                "template_ids": {
+                    "description": "Restrict to these exact template IDs",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "cve-2021-0001"
+                    ]
+                },
+                "timeout_sec": {
+                    "description": "Per-request timeout in seconds (1-300)",
+                    "type": "integer",
+                    "example": 10
+                }
+            }
+        },
+        "internal_api.scopeRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "description": "Optional comment",
+                    "type": "string",
+                    "example": "Corporate domain"
+                },
+                "kind": {
+                    "description": "Entry type: domain, cidr or ip",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeKind"
+                        }
+                    ],
+                    "example": "domain"
+                },
+                "value": {
+                    "description": "Entry value; normalized on write (domain lowercased, CIDR/IP canonicalized)",
+                    "type": "string",
+                    "example": "example.com"
+                }
+            }
+        },
+        "internal_api.targetRequest": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "description": "Optional comment",
+                    "type": "string",
+                    "example": "Public staging estate"
+                },
+                "exclude": {
+                    "description": "Hosts, IPs or CIDRs excluded from the scan",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "10.0.0.0/8"
+                    ]
+                },
+                "hosts": {
+                    "description": "Hosts to scan (URLs, host:port, bare hosts or IPs); at least one required",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://app.example.com"
+                    ]
+                },
+                "name": {
+                    "description": "Unique target name",
+                    "type": "string",
+                    "example": "staging-web"
+                },
+                "probe_first": {
+                    "description": "Probe hosts before scanning; defaults to true when omitted",
+                    "type": "boolean"
+                },
+                "tags": {
+                    "description": "Arbitrary labels",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "prod"
+                    ]
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "description": "Scope allowlist entries (domains, CIDRs and IPs) that targets are checked against.",
+            "name": "scope"
+        },
+        {
+            "description": "Targets whose hosts are validated against the scope allowlist.",
+            "name": "targets"
+        },
+        {
+            "description": "Nuclei scan profiles, including seeded built-in profiles.",
+            "name": "profiles"
+        },
+        {
+            "description": "Tasks that bind a target to a profile.",
+            "name": "tasks"
+        }
+    ]
+}

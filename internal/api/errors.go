@@ -11,6 +11,12 @@ import (
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
 )
 
+// ErrorResponse is the standard error envelope returned by every endpoint.
+type ErrorResponse struct {
+	// Human-readable error message
+	Error string `json:"error" example:"validation failed: name is required"`
+}
+
 func writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, domain.ErrValidation):

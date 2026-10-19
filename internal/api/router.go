@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/mmk31585/Nuclei-manager/internal/domain"
+	"github.com/mmk31585/Nuclei-manager/internal/runs"
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
 )
 
@@ -18,6 +19,10 @@ type Deps struct {
 	Targets   domain.TargetRepo
 	Profiles  domain.ProfileRepo
 	Tasks     domain.TaskRepo
+	Runs      *runs.Service
+	RunRepo   domain.RunRepo
+	Stopper   interface{ Stop(id uint) error }
+	DataDir   string
 }
 
 func NewRouter(d Deps) *gin.Engine {
@@ -40,5 +45,6 @@ func NewRouter(d Deps) *gin.Engine {
 	NewTargetHandler(d.Targets, d.Scope).Register(v1)
 	NewProfileHandler(d.Profiles).Register(v1)
 	NewTaskHandler(d.Tasks, d.Targets, d.Profiles).Register(v1)
+	NewRunHandler(d.Runs, d.RunRepo, d.Stopper, d.DataDir).Register(v1)
 	return r
 }

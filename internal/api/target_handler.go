@@ -28,13 +28,20 @@ func (h *TargetHandler) Register(rg *gin.RouterGroup) {
 	g.DELETE("/:id", h.Delete)
 }
 
+// targetRequest is the request body for creating or replacing a target.
 type targetRequest struct {
-	Name       string   `json:"name"`
-	Comment    string   `json:"comment"`
-	Hosts      []string `json:"hosts"`
-	Exclude    []string `json:"exclude"`
-	Tags       []string `json:"tags"`
-	ProbeFirst *bool    `json:"probe_first"`
+	// Unique target name
+	Name string `json:"name" example:"staging-web"`
+	// Optional comment
+	Comment string `json:"comment" example:"Public staging estate"`
+	// Hosts to scan (URLs, host:port, bare hosts or IPs); at least one required
+	Hosts []string `json:"hosts" example:"https://app.example.com"`
+	// Hosts, IPs or CIDRs excluded from the scan
+	Exclude []string `json:"exclude" example:"10.0.0.0/8"`
+	// Arbitrary labels
+	Tags []string `json:"tags" example:"prod"`
+	// Probe hosts before scanning; defaults to true when omitted
+	ProbeFirst *bool `json:"probe_first"`
 }
 
 func (r targetRequest) apply(t *domain.Target) {
@@ -54,6 +61,14 @@ func (h *TargetHandler) prepare(ctx context.Context, t *domain.Target) error {
 	return h.scope.CheckAll(ctx, t.Hosts)
 }
 
+// List godoc
+// @Summary      List targets
+// @Description  Returns all targets ordered by id.
+// @Tags         targets
+// @Produce      json
+// @Success      200  {array}   domain.Target
+// @Failure      500  {object}  ErrorResponse
+// @Router       /targets [get]
 func (h *TargetHandler) List(c *gin.Context) {
 	out, err := h.repo.List(c.Request.Context())
 	if err != nil {
@@ -63,6 +78,16 @@ func (h *TargetHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// Get godoc
+// @Summary      Get a target
+// @Description  Returns a single target by id.
+// @Tags         targets
+// @Produce      json
+// @Param        id   path      int  true  "Target ID"
+// @Success      200  {object}  domain.Target
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /targets/{id} [get]
 func (h *TargetHandler) Get(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -76,6 +101,18 @@ func (h *TargetHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
+// Create godoc
+// @Summary      Create a target
+// @Description  Creates a target after validating it and enforcing the scope allowlist on every host. Rejects out-of-scope hosts with 422.
+// @Tags         targets
+// @Accept       json
+// @Produce      json
+// @Param        target  body      targetRequest  true  "Target to create"
+// @Success      201     {object}  domain.Target
+// @Failure      400     {object}  ErrorResponse
+// @Failure      409     {object}  ErrorResponse
+// @Failure      422     {object}  ErrorResponse  "One or more hosts are outside the allowed scope"
+// @Router       /targets [post]
 func (h *TargetHandler) Create(c *gin.Context) {
 	var req targetRequest
 	if !bindJSON(c, &req) {
@@ -94,6 +131,19 @@ func (h *TargetHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, t)
 }
 
+// Update godoc
+// @Summary      Replace a target
+// @Description  Full replacement of a target by id. The new host list is re-validated against the scope allowlist.
+// @Tags         targets
+// @Accept       json
+// @Produce      json
+// @Param        id      path      int            true  "Target ID"
+// @Param        target  body      targetRequest  true  "Replacement target"
+// @Success      200     {object}  domain.Target
+// @Failure      400     {object}  ErrorResponse
+// @Failure      404     {object}  ErrorResponse
+// @Failure     422     {object}  ErrorResponse  "One or more hosts are outside the allowed scope"
+// @Router       /targets/{id} [put]
 func (h *TargetHandler) Update(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -121,6 +171,16 @@ func (h *TargetHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
+// Delete godoc
+// @Summary      Delete a target
+// @Description  Deletes a target by id. Returns 409 when one or more tasks reference it.
+// @Tags         targets
+// @Param        id   path      int  true  "Target ID"
+// @Success      204
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse  "Target is used by one or more tasks"
+// @Router       /targets/{id} [delete]
 func (h *TargetHandler) Delete(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {

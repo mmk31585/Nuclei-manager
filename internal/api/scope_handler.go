@@ -23,10 +23,14 @@ func (h *ScopeHandler) Register(rg *gin.RouterGroup) {
 	g.DELETE("/:id", h.Delete)
 }
 
+// scopeRequest is the request body for creating a scope entry.
 type scopeRequest struct {
-	Kind    domain.ScopeKind `json:"kind"`
-	Value   string           `json:"value"`
-	Comment string           `json:"comment"`
+	// Entry type: domain, cidr or ip
+	Kind domain.ScopeKind `json:"kind" example:"domain"`
+	// Entry value; normalized on write (domain lowercased, CIDR/IP canonicalized)
+	Value string `json:"value" example:"example.com"`
+	// Optional comment
+	Comment string `json:"comment" example:"Corporate domain"`
 }
 
 func (r scopeRequest) apply(e *domain.ScopeEntry) {
@@ -35,6 +39,14 @@ func (r scopeRequest) apply(e *domain.ScopeEntry) {
 	e.Comment = r.Comment
 }
 
+// List godoc
+// @Summary      List scope entries
+// @Description  Returns all scope allowlist entries ordered by id. An empty allowlist makes the target check fail-closed.
+// @Tags         scope
+// @Produce      json
+// @Success      200  {array}   domain.ScopeEntry
+// @Failure      500  {object}  ErrorResponse
+// @Router       /scope [get]
 func (h *ScopeHandler) List(c *gin.Context) {
 	out, err := h.repo.List(c.Request.Context())
 	if err != nil {
@@ -44,6 +56,17 @@ func (h *ScopeHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// Create godoc
+// @Summary      Create a scope entry
+// @Description  Adds a domain, CIDR or IP to the allowlist. Values are normalized and validated.
+// @Tags         scope
+// @Accept       json
+// @Produce      json
+// @Param        entry  body      scopeRequest  true  "Scope entry to create"
+// @Success      201    {object}  domain.ScopeEntry
+// @Failure      400    {object}  ErrorResponse
+// @Failure      409    {object}  ErrorResponse
+// @Router       /scope [post]
 func (h *ScopeHandler) Create(c *gin.Context) {
 	var req scopeRequest
 	if !bindJSON(c, &req) {
@@ -62,6 +85,15 @@ func (h *ScopeHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, e)
 }
 
+// Delete godoc
+// @Summary      Delete a scope entry
+// @Description  Removes a scope entry by id.
+// @Tags         scope
+// @Param        id   path      int  true  "Scope entry ID"
+// @Success      204
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /scope/{id} [delete]
 func (h *ScopeHandler) Delete(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {

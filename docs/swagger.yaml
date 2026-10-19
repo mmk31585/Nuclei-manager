@@ -1,0 +1,687 @@
+basePath: /api/v1
+consumes:
+- application/json
+definitions:
+  github_com_mmk31585_Nuclei-manager_internal_domain.Profile:
+    properties:
+      builtin:
+        description: True for seeded built-in profiles (read-only, defaults to false)
+        type: boolean
+      bulk_size:
+        description: Bulk size (1-500, defaults to 25)
+        type: integer
+      concurrency:
+        description: Concurrent requests (1-500, defaults to 25)
+        type: integer
+      created_at:
+        description: Creation timestamp (read-only)
+        type: string
+      custom_set:
+        description: Name of an external custom template set directory
+        type: string
+      description:
+        description: Optional free-text description
+        type: string
+      exclude_tags:
+        description: Exclude templates carrying any of these tags
+        items:
+          type: string
+        type: array
+      id:
+        description: Profile identifier (read-only)
+        type: integer
+      max_duration_min:
+        description: Max total scan duration in minutes (1-1440, defaults to 120)
+        type: integer
+      max_host_error:
+        description: Max errors per host before skipping it (1-1000, defaults to 30)
+        type: integer
+      name:
+        description: Unique profile name (1-191 characters)
+        type: string
+      oast:
+        description: Enable OAST interaction callbacks
+        type: boolean
+      protocols:
+        description: Restrict to these protocols (http, dns, tcp, ssl, websocket,
+          whois, javascript, workflow)
+        items:
+          type: string
+        type: array
+      rate_limit:
+        description: Requests per second (1-10000, defaults to 50)
+        type: integer
+      retries:
+        description: Retries per request (0-10, defaults to 1)
+        type: integer
+      severity:
+        description: Only run templates of these severities
+        items:
+          type: string
+        type: array
+      tags:
+        description: Only run templates with at least one of these tags
+        items:
+          type: string
+        type: array
+      template_ids:
+        description: Restrict to these exact template IDs
+        items:
+          type: string
+        type: array
+      timeout_sec:
+        description: Per-request timeout in seconds (1-300, defaults to 10)
+        type: integer
+      updated_at:
+        description: Last update timestamp (read-only)
+        type: string
+    type: object
+  github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry:
+    properties:
+      comment:
+        description: Optional free-text comment
+        type: string
+      created_at:
+        description: Creation timestamp (read-only)
+        type: string
+      id:
+        description: Scope entry identifier (read-only)
+        type: integer
+      kind:
+        allOf:
+        - $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeKind'
+        description: 'Entry type: domain, cidr or ip'
+      value:
+        description: Entry value, normalized on write (domain lowercased, CIDR/IP
+          canonicalized)
+        type: string
+    type: object
+  github_com_mmk31585_Nuclei-manager_internal_domain.ScopeKind:
+    enum:
+    - domain
+    - cidr
+    - ip
+    type: string
+    x-enum-varnames:
+    - ScopeDomain
+    - ScopeCIDR
+    - ScopeIP
+  github_com_mmk31585_Nuclei-manager_internal_domain.Target:
+    properties:
+      comment:
+        description: Optional free-text comment
+        type: string
+      created_at:
+        description: Creation timestamp (read-only)
+        type: string
+      exclude:
+        description: Hosts, IPs or CIDRs excluded from the scan
+        items:
+          type: string
+        type: array
+      hosts:
+        description: Hosts to scan (URLs, host:port, bare hosts or IPs); at least
+          one required
+        items:
+          type: string
+        type: array
+      id:
+        description: Target identifier (read-only, assigned by the server)
+        type: integer
+      name:
+        description: Unique target name (1-191 characters)
+        type: string
+      probe_first:
+        description: Probe hosts for reachability before scanning (defaults to true)
+        type: boolean
+      tags:
+        description: Arbitrary labels for filtering and grouping
+        items:
+          type: string
+        type: array
+      updated_at:
+        description: Last update timestamp (read-only)
+        type: string
+    type: object
+  internal_api.ErrorResponse:
+    properties:
+      error:
+        description: Human-readable error message
+        example: 'validation failed: name is required'
+        type: string
+    type: object
+  internal_api.profileRequest:
+    properties:
+      bulk_size:
+        description: Bulk size (1-500)
+        example: 25
+        type: integer
+      concurrency:
+        description: Concurrent requests (1-500)
+        example: 25
+        type: integer
+      custom_set:
+        description: Name of an external custom template set directory
+        example: custom-a
+        type: string
+      description:
+        description: Optional description
+        example: External-facing web checks
+        type: string
+      exclude_tags:
+        description: Exclude templates carrying any of these tags
+        example:
+        - dos
+        - intrusive
+        items:
+          type: string
+        type: array
+      max_duration_min:
+        description: Max total scan duration in minutes (1-1440)
+        example: 120
+        type: integer
+      max_host_error:
+        description: Max errors per host before skipping it (1-1000)
+        example: 30
+        type: integer
+      name:
+        description: Unique profile name
+        example: external-only
+        type: string
+      oast:
+        description: Enable OAST interaction callbacks
+        type: boolean
+      protocols:
+        description: Restrict to these protocols (http, dns, tcp, ssl, websocket,
+          whois, javascript, workflow)
+        example:
+        - http
+        - ssl
+        items:
+          type: string
+        type: array
+      rate_limit:
+        description: Requests per second (1-10000)
+        example: 50
+        type: integer
+      retries:
+        description: Retries per request (0-10)
+        example: 1
+        type: integer
+      severity:
+        description: Only run templates of these severities
+        example:
+        - medium
+        - high
+        - critical
+        items:
+          type: string
+        type: array
+      tags:
+        description: Only run templates with at least one of these tags
+        example:
+        - cve
+        - exposure
+        items:
+          type: string
+        type: array
+      template_ids:
+        description: Restrict to these exact template IDs
+        example:
+        - cve-2021-0001
+        items:
+          type: string
+        type: array
+      timeout_sec:
+        description: Per-request timeout in seconds (1-300)
+        example: 10
+        type: integer
+    type: object
+  internal_api.scopeRequest:
+    properties:
+      comment:
+        description: Optional comment
+        example: Corporate domain
+        type: string
+      kind:
+        allOf:
+        - $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeKind'
+        description: 'Entry type: domain, cidr or ip'
+        example: domain
+      value:
+        description: Entry value; normalized on write (domain lowercased, CIDR/IP
+          canonicalized)
+        example: example.com
+        type: string
+    type: object
+  internal_api.targetRequest:
+    properties:
+      comment:
+        description: Optional comment
+        example: Public staging estate
+        type: string
+      exclude:
+        description: Hosts, IPs or CIDRs excluded from the scan
+        example:
+        - 10.0.0.0/8
+        items:
+          type: string
+        type: array
+      hosts:
+        description: Hosts to scan (URLs, host:port, bare hosts or IPs); at least
+          one required
+        example:
+        - https://app.example.com
+        items:
+          type: string
+        type: array
+      name:
+        description: Unique target name
+        example: staging-web
+        type: string
+      probe_first:
+        description: Probe hosts before scanning; defaults to true when omitted
+        type: boolean
+      tags:
+        description: Arbitrary labels
+        example:
+        - prod
+        items:
+          type: string
+        type: array
+    type: object
+host: 127.0.0.1:8080
+info:
+  contact:
+    name: scanner-manager
+    url: https://github.com/mmk31585/Nuclei-manager
+  description: |-
+    REST API for managing Nuclei vulnerability scans.
+    The service validates every target against a configurable scope allowlist,
+    exposes scan profiles (built-in and custom), and stores tasks that bind a
+    target to a profile. It is the control plane for a planned worker that
+    executes Nuclei and stores runs and findings.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: scanner-manager API
+  version: "0.1"
+paths:
+  /profiles:
+    get:
+      description: Returns all scan profiles ordered by id, including the seeded built-in
+        profiles.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: List profiles
+      tags:
+      - profiles
+    post:
+      consumes:
+      - application/json
+      description: Creates a custom profile. Zero-valued numeric fields are filled
+        with defaults before validation.
+      parameters:
+      - description: Profile to create
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.profileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Create a profile
+      tags:
+      - profiles
+  /profiles/{id}:
+    delete:
+      description: Deletes a custom profile by id. Built-in profiles and profiles
+        referenced by tasks return 409.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "409":
+          description: Built-in profile or profile in use
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Delete a profile
+      tags:
+      - profiles
+    get:
+      description: Returns a single profile by id.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Get a profile
+      tags:
+      - profiles
+    put:
+      consumes:
+      - application/json
+      description: Full replacement of a custom profile by id. Built-in profiles are
+        read-only and return 409.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Replacement profile
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.profileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Profile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "409":
+          description: Built-in profiles are read-only
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Replace a profile
+      tags:
+      - profiles
+  /scope:
+    get:
+      description: Returns all scope allowlist entries ordered by id. An empty allowlist
+        makes the target check fail-closed.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: List scope entries
+      tags:
+      - scope
+    post:
+      consumes:
+      - application/json
+      description: Adds a domain, CIDR or IP to the allowlist. Values are normalized
+        and validated.
+      parameters:
+      - description: Scope entry to create
+        in: body
+        name: entry
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.scopeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Create a scope entry
+      tags:
+      - scope
+  /scope/{id}:
+    delete:
+      description: Removes a scope entry by id.
+      parameters:
+      - description: Scope entry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Delete a scope entry
+      tags:
+      - scope
+  /targets:
+    get:
+      description: Returns all targets ordered by id.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: List targets
+      tags:
+      - targets
+    post:
+      consumes:
+      - application/json
+      description: Creates a target after validating it and enforcing the scope allowlist
+        on every host. Rejects out-of-scope hosts with 422.
+      parameters:
+      - description: Target to create
+        in: body
+        name: target
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.targetRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "422":
+          description: One or more hosts are outside the allowed scope
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Create a target
+      tags:
+      - targets
+  /targets/{id}:
+    delete:
+      description: Deletes a target by id. Returns 409 when one or more tasks reference
+        it.
+      parameters:
+      - description: Target ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "409":
+          description: Target is used by one or more tasks
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Delete a target
+      tags:
+      - targets
+    get:
+      description: Returns a single target by id.
+      parameters:
+      - description: Target ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Get a target
+      tags:
+      - targets
+    put:
+      consumes:
+      - application/json
+      description: Full replacement of a target by id. The new host list is re-validated
+        against the scope allowlist.
+      parameters:
+      - description: Target ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Replacement target
+        in: body
+        name: target
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api.targetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Target'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "422":
+          description: One or more hosts are outside the allowed scope
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Replace a target
+      tags:
+      - targets
+produces:
+- application/json
+schemes:
+- http
+swagger: "2.0"
+tags:
+- description: Scope allowlist entries (domains, CIDRs and IPs) that targets are checked
+    against.
+  name: scope
+- description: Targets whose hosts are validated against the scope allowlist.
+  name: targets
+- description: Nuclei scan profiles, including seeded built-in profiles.
+  name: profiles
+- description: Tasks that bind a target to a profile.
+  name: tasks

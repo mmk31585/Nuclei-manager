@@ -25,23 +25,40 @@ func (h *ProfileHandler) Register(rg *gin.RouterGroup) {
 	g.DELETE("/:id", h.Delete)
 }
 
+// profileRequest is the request body for creating or replacing a profile.
 type profileRequest struct {
-	Name           string   `json:"name"`
-	Description    string   `json:"description"`
-	Tags           []string `json:"tags"`
-	ExcludeTags    []string `json:"exclude_tags"`
-	Severity       []string `json:"severity"`
-	Protocols      []string `json:"protocols"`
-	TemplateIDs    []string `json:"template_ids"`
-	CustomSet      string   `json:"custom_set"`
-	RateLimit      int      `json:"rate_limit"`
-	Concurrency    int      `json:"concurrency"`
-	BulkSize       int      `json:"bulk_size"`
-	TimeoutSec     int      `json:"timeout_sec"`
-	Retries        int      `json:"retries"`
-	MaxHostError   int      `json:"max_host_error"`
-	MaxDurationMin int      `json:"max_duration_min"`
-	OAST           *bool    `json:"oast"`
+	// Unique profile name
+	Name string `json:"name" example:"external-only"`
+	// Optional description
+	Description string `json:"description" example:"External-facing web checks"`
+	// Only run templates with at least one of these tags
+	Tags []string `json:"tags" example:"cve,exposure"`
+	// Exclude templates carrying any of these tags
+	ExcludeTags []string `json:"exclude_tags" example:"dos,intrusive"`
+	// Only run templates of these severities
+	Severity []string `json:"severity" example:"medium,high,critical"`
+	// Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)
+	Protocols []string `json:"protocols" example:"http,ssl"`
+	// Restrict to these exact template IDs
+	TemplateIDs []string `json:"template_ids" example:"cve-2021-0001"`
+	// Name of an external custom template set directory
+	CustomSet string `json:"custom_set" example:"custom-a"`
+	// Requests per second (1-10000)
+	RateLimit int `json:"rate_limit" example:"50"`
+	// Concurrent requests (1-500)
+	Concurrency int `json:"concurrency" example:"25"`
+	// Bulk size (1-500)
+	BulkSize int `json:"bulk_size" example:"25"`
+	// Per-request timeout in seconds (1-300)
+	TimeoutSec int `json:"timeout_sec" example:"10"`
+	// Retries per request (0-10)
+	Retries int `json:"retries" example:"1"`
+	// Max errors per host before skipping it (1-1000)
+	MaxHostError int `json:"max_host_error" example:"30"`
+	// Max total scan duration in minutes (1-1440)
+	MaxDurationMin int `json:"max_duration_min" example:"120"`
+	// Enable OAST interaction callbacks
+	OAST *bool `json:"oast"`
 }
 
 func (r profileRequest) apply(p *domain.Profile) {
@@ -65,6 +82,14 @@ func (r profileRequest) apply(p *domain.Profile) {
 	}
 }
 
+// List godoc
+// @Summary      List profiles
+// @Description  Returns all scan profiles ordered by id, including the seeded built-in profiles.
+// @Tags         profiles
+// @Produce      json
+// @Success      200  {array}   domain.Profile
+// @Failure      500  {object}  ErrorResponse
+// @Router       /profiles [get]
 func (h *ProfileHandler) List(c *gin.Context) {
 	out, err := h.repo.List(c.Request.Context())
 	if err != nil {
@@ -74,6 +99,16 @@ func (h *ProfileHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// Get godoc
+// @Summary      Get a profile
+// @Description  Returns a single profile by id.
+// @Tags         profiles
+// @Produce      json
+// @Param        id   path      int  true  "Profile ID"
+// @Success      200  {object}  domain.Profile
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /profiles/{id} [get]
 func (h *ProfileHandler) Get(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -87,6 +122,17 @@ func (h *ProfileHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, p)
 }
 
+// Create godoc
+// @Summary      Create a profile
+// @Description  Creates a custom profile. Zero-valued numeric fields are filled with defaults before validation.
+// @Tags         profiles
+// @Accept       json
+// @Produce      json
+// @Param        profile  body      profileRequest  true  "Profile to create"
+// @Success      201      {object}  domain.Profile
+// @Failure      400      {object}  ErrorResponse
+// @Failure      409      {object}  ErrorResponse
+// @Router       /profiles [post]
 func (h *ProfileHandler) Create(c *gin.Context) {
 	var req profileRequest
 	if !bindJSON(c, &req) {
@@ -107,6 +153,19 @@ func (h *ProfileHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, p)
 }
 
+// Update godoc
+// @Summary      Replace a profile
+// @Description  Full replacement of a custom profile by id. Built-in profiles are read-only and return 409.
+// @Tags         profiles
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int             true  "Profile ID"
+// @Param        profile  body      profileRequest  true  "Replacement profile"
+// @Success      200      {object}  domain.Profile
+// @Failure      400      {object}  ErrorResponse
+// @Failure      404      {object}  ErrorResponse
+// @Failure      409      {object}  ErrorResponse  "Built-in profiles are read-only"
+// @Router       /profiles/{id} [put]
 func (h *ProfileHandler) Update(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -135,6 +194,16 @@ func (h *ProfileHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, p)
 }
 
+// Delete godoc
+// @Summary      Delete a profile
+// @Description  Deletes a custom profile by id. Built-in profiles and profiles referenced by tasks return 409.
+// @Tags         profiles
+// @Param        id   path      int  true  "Profile ID"
+// @Success      204
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse  "Built-in profile or profile in use"
+// @Router       /profiles/{id} [delete]
 func (h *ProfileHandler) Delete(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {

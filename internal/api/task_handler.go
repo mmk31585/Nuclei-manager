@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -90,7 +89,19 @@ func (h *TaskHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
-func (h *TaskHandler) save(ctx context.Context, t *domain.Task, c *gin.Context) {
+func (h *TaskHandler) Create(c *gin.Context) {
+	var req taskRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	var t domain.Task
+	req.apply(&t)
+	t.ApplyDefaults()
+	if err := t.Validate(); err != nil {
+		writeError(c, err)
+		return
+	}
+	ctx := c.Request.Context()
 	if _, err := h.targets.Get(ctx, t.TargetID); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			writeError(c, fmt.Errorf("%w: target_id does not exist", domain.ErrValidation))
@@ -107,26 +118,11 @@ func (h *TaskHandler) save(ctx context.Context, t *domain.Task, c *gin.Context) 
 		}
 		return
 	}
-	if err := h.repo.Create(ctx, t); err != nil {
+	if err := h.repo.Create(ctx, &t); err != nil {
 		writeError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, t)
-}
-
-func (h *TaskHandler) Create(c *gin.Context) {
-	var req taskRequest
-	if !bindJSON(c, &req) {
-		return
-	}
-	var t domain.Task
-	req.apply(&t)
-	t.ApplyDefaults()
-	if err := t.Validate(); err != nil {
-		writeError(c, err)
-		return
-	}
-	h.save(c.Request.Context(), &t, c)
 }
 
 func (h *TaskHandler) Update(c *gin.Context) {
