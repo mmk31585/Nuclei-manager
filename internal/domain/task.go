@@ -8,27 +8,27 @@ import (
 type ScheduleType string
 
 const (
-	ScheduleOnce  ScheduleType = "once"
-	ScheduleCron  ScheduleType = "cron"
+	ScheduleOnce ScheduleType = "once"
+	ScheduleCron ScheduleType = "cron"
 )
 
 type Task struct {
-	ID               uint        `json:"id" gorm:"primaryKey"`
-	Name             string      `json:"name" gorm:"size:191;uniqueIndex;not null"`
-	Comment          string      `json:"comment" gorm:"type:text"`
-	TargetID         uint        `json:"target_id" gorm:"index;not null"`
-	ProfileID        uint        `json:"profile_id" gorm:"index;not null"`
-	ScheduleType     ScheduleType `json:"schedule_type"`
-	CronExpr         string      `json:"cron_expr" gorm:"size:64"`
-	Timezone         string      `json:"timezone" gorm:"size:64"`
-	MinSeverity      Severity    `json:"min_severity"`
-	AddToAssets      bool        `json:"add_to_assets"`
-	ApplySuppressions bool       `json:"apply_suppressions"`
-	Enabled          bool        `json:"enabled"`
-	RetentionKeepLast int        `json:"retention_keep_last"`
-	NotifyOn         StringList  `json:"notify_on" gorm:"type:text;not null"`
-	CreatedAt        time.Time   `json:"created_at"`
-	UpdatedAt        time.Time   `json:"updated_at"`
+	ID                uint         `json:"id" gorm:"primaryKey"`
+	Name              string       `json:"name" gorm:"size:191;uniqueIndex;not null"`
+	Comment           string       `json:"comment" gorm:"type:text"`
+	TargetID          uint         `json:"target_id" gorm:"index;not null"`
+	ProfileID         uint         `json:"profile_id" gorm:"index;not null"`
+	ScheduleType      ScheduleType `json:"schedule_type"`
+	CronExpr          string       `json:"cron_expr" gorm:"size:64"`
+	Timezone          string       `json:"timezone" gorm:"size:64"`
+	MinSeverity       Severity     `json:"min_severity"`
+	AddToAssets       bool         `json:"add_to_assets"`
+	ApplySuppressions bool         `json:"apply_suppressions"`
+	Enabled           bool         `json:"enabled"`
+	RetentionKeepLast int          `json:"retention_keep_last"`
+	NotifyOn          StringList   `json:"notify_on" gorm:"type:text;not null"`
+	CreatedAt         time.Time    `json:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at"`
 }
 
 // ApplyDefaults fills zero-valued schedule and retention fields.

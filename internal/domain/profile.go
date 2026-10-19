@@ -6,26 +6,26 @@ import (
 )
 
 type Profile struct {
-	ID             uint        `json:"id" gorm:"primaryKey"`
-	Name           string      `json:"name" gorm:"size:191;uniqueIndex;not null"`
-	Description    string      `json:"description" gorm:"type:text"`
-	Tags           StringList  `json:"tags" gorm:"type:text;not null"`
-	ExcludeTags    StringList  `json:"exclude_tags" gorm:"type:text;not null"`
-	Severity       StringList  `json:"severity" gorm:"type:text;not null"`
-	Protocols      StringList  `json:"protocols" gorm:"type:text;not null"`
-	TemplateIDs    StringList  `json:"template_ids" gorm:"type:text;not null"`
-	CustomSet      string      `json:"custom_set" gorm:"size:191"`
-	RateLimit      int         `json:"rate_limit"`
-	Concurrency    int         `json:"concurrency"`
-	BulkSize       int         `json:"bulk_size"`
-	TimeoutSec     int         `json:"timeout_sec"`
-	Retries        int         `json:"retries"`
-	MaxHostError   int         `json:"max_host_error"`
-	MaxDurationMin int         `json:"max_duration_min"`
-	OAST           bool        `json:"oast"`
-	Builtin        bool        `json:"builtin"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
+	ID             uint       `json:"id" gorm:"primaryKey"`
+	Name           string     `json:"name" gorm:"size:191;uniqueIndex;not null"`
+	Description    string     `json:"description" gorm:"type:text"`
+	Tags           StringList `json:"tags" gorm:"type:text;not null"`
+	ExcludeTags    StringList `json:"exclude_tags" gorm:"type:text;not null"`
+	Severity       StringList `json:"severity" gorm:"type:text;not null"`
+	Protocols      StringList `json:"protocols" gorm:"type:text;not null"`
+	TemplateIDs    StringList `json:"template_ids" gorm:"type:text;not null"`
+	CustomSet      string     `json:"custom_set" gorm:"size:191"`
+	RateLimit      int        `json:"rate_limit"`
+	Concurrency    int        `json:"concurrency"`
+	BulkSize       int        `json:"bulk_size"`
+	TimeoutSec     int        `json:"timeout_sec"`
+	Retries        int        `json:"retries"`
+	MaxHostError   int        `json:"max_host_error"`
+	MaxDurationMin int        `json:"max_duration_min"`
+	OAST           bool       `json:"oast"`
+	Builtin        bool       `json:"builtin"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // ApplyDefaults fills zero-valued int fields with the phase defaults.
