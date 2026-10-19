@@ -1,0 +1,5 @@
+services:
+  juiceshop:
+    image: bkimminich/juice-shop
+    ports:
+      - "127.0.0.1:3000:3000"

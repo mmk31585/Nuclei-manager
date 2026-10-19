@@ -3,7 +3,7 @@ export
 
 BIN := bin/scanner-manager
 
-.PHONY: run build test vet fmt fmt-check tidy check db-up db-down smoke
+.PHONY: run build test test-race vet fmt fmt-check tidy check db-up db-down smoke lab-up lab-down smoke-run
 
 run:
 	go run ./cmd/scanner-manager
@@ -36,3 +36,15 @@ db-down:
 
 smoke:
 	./scripts/smoke.sh
+
+test-race:
+	go test -race ./internal/...
+
+lab-up:
+	docker compose -f docker-compose.lab.yml up -d
+
+lab-down:
+	docker compose -f docker-compose.lab.yml down
+
+smoke-run:
+	./scripts/smoke_run.sh

@@ -1,0 +1,14 @@
+id: sm-smoke-homepage
+info:
+  name: Smoke test - homepage reachable
+  author: scanner-manager
+  severity: medium
+  tags: smoke
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/"
+    matchers:
+      - type: status
+        status:
+          - 200
