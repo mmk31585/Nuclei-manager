@@ -48,6 +48,8 @@ import (
 // @tag.description            Nuclei scan profiles, including seeded built-in profiles.
 // @tag.name                   tasks
 // @tag.description            Tasks that bind a target to a profile.
+// @tag.name                   runs
+// @tag.description            Runs queued by a task and executed by the worker, including logs and raw output.
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	if err := run(); err != nil {

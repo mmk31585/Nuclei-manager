@@ -6,7 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
+	_ "github.com/mmk31585/Nuclei-manager/docs"
 	"github.com/mmk31585/Nuclei-manager/internal/domain"
 	"github.com/mmk31585/Nuclei-manager/internal/runs"
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
@@ -39,6 +42,9 @@ func NewRouter(d Deps) *gin.Engine {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	// Interactive OpenAPI documentation (Swagger UI).
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	v1 := r.Group("/api/v1")
 	NewScopeHandler(d.ScopeRepo).Register(v1)

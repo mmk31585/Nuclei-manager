@@ -17,6 +17,18 @@ type ErrorResponse struct {
 	Error string `json:"error" example:"validation failed: name is required"`
 }
 
+// LogChunk is a UTF-8 page of a run's supervisor log.
+type LogChunk struct {
+	// Byte offset this chunk starts at
+	Offset int64 `json:"offset"`
+	// Offset to pass as the next page's offset when tailing
+	NextOffset int64 `json:"next_offset"`
+	// True when there is no more data after this chunk
+	Eof bool `json:"eof"`
+	// Decoded text chunk (invalid bytes replaced)
+	Data string `json:"data"`
+}
+
 func writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, domain.ErrValidation):

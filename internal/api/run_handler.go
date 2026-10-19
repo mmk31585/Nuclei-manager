@@ -45,6 +45,16 @@ func (h *RunHandler) runFile(id uint, name string) string {
 	return filepath.Join(h.dataDir, "runs", strconv.FormatUint(uint64(id), 10), name)
 }
 
+// CreateForTask godoc
+// @Summary      Queue a run for a task
+// @Description  Validates the task's target/profile against the scope, freezes a config snapshot and queues a run. The worker picks it up and executes Nuclei.
+// @Tags         runs
+// @Produce      json
+// @Param        id   path      int  true  "Task ID"
+// @Success      202  {object}  domain.Run
+// @Failure      400  {object}  ErrorResponse  "Task not found, or its target is out of scope"
+// @Failure      409  {object}  ErrorResponse  "Task already has an active run"
+// @Router       /tasks/{id}/run [post]
 func (h *RunHandler) CreateForTask(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -58,6 +68,18 @@ func (h *RunHandler) CreateForTask(c *gin.Context) {
 	c.JSON(http.StatusAccepted, run)
 }
 
+// List godoc
+// @Summary      List runs
+// @Description  Returns runs ordered by id (newest first). Optionally filter by task_id and/or status.
+// @Tags         runs
+// @Produce      json
+// @Param        task_id  query     int     false  "Filter by task ID"
+// @Param        status   query     string  false  "Filter by status (queued, running, completed, failed, timed_out, stopped, cancelled)"
+// @Param        limit    query     int     false  "Maximum results (1-200, default 50)"
+// @Success      200      {array}   domain.Run
+// @Failure      400      {object}  ErrorResponse
+// @Failure      500      {object}  ErrorResponse
+// @Router       /runs [get]
 func (h *RunHandler) List(c *gin.Context) {
 	ctx := c.Request.Context()
 	f := domain.RunFilter{
@@ -77,6 +99,16 @@ func (h *RunHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// Get godoc
+// @Summary      Get a run
+// @Description  Returns a single run by id, including timing and finding counters.
+// @Tags         runs
+// @Produce      json
+// @Param        id   path      int  true  "Run ID"
+// @Success      200  {object}  domain.Run
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /runs/{id} [get]
 func (h *RunHandler) Get(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -90,6 +122,18 @@ func (h *RunHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, run)
 }
 
+// Stop godoc
+// @Summary      Stop a run
+// @Description  Cancels a queued run, or asks the worker to stop a running run. Stopping a running run is asynchronous.
+// @Tags         runs
+// @Produce      json
+// @Param        id   path      int  true  "Run ID"
+// @Success      200  {object}  domain.Run             "Run cancelled while still queued"
+// @Success      202  {object}  object{status=string}  "Stop requested for a running run"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse  "Run already finished or is not active on this instance"
+// @Router       /runs/{id}/stop [post]
 func (h *RunHandler) Stop(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -141,6 +185,18 @@ func (h *RunHandler) Stop(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"status": "stopping"})
 }
 
+// Log godoc
+// @Summary      Read run log
+// @Description  Returns a UTF-8 page of the run's supervisor log starting at a byte offset. Pass next_offset back to tail.
+// @Tags         runs
+// @Produce      json
+// @Param        id      path      int   true  "Run ID"
+// @Param        offset  query     int   false  "Byte offset to start from (default 0)"
+// @Param        limit   query     int   false  "Maximum bytes to return (default 65536, max 1048576)"
+// @Success      200     {object}  LogChunk
+// @Failure      400     {object}  ErrorResponse
+// @Failure      404     {object}  ErrorResponse
+// @Router       /runs/{id}/log [get]
 func (h *RunHandler) Log(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {
@@ -170,6 +226,16 @@ func (h *RunHandler) Log(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"offset": offset, "next_offset": next, "eof": eof, "data": data})
 }
 
+// Output godoc
+// @Summary      Download raw run output
+// @Description  Downloads the raw Nuclei JSONL results for a run as application/x-ndjson.
+// @Tags         runs
+// @Produce      application/x-ndjson
+// @Param        id   path      int  true  "Run ID"
+// @Success      200  {string}  binary  "Newline-delimited JSON results"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse  "No output yet"
+// @Router       /runs/{id}/output [get]
 func (h *RunHandler) Output(c *gin.Context) {
 	id, ok := pathID(c)
 	if !ok {

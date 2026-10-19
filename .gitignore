@@ -2,4 +2,5 @@ bin/
 .env
 *.out
 data/
+docs/
 

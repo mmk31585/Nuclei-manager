@@ -239,6 +239,254 @@ const docTemplate = `{
                 }
             }
         },
+        "/runs": {
+            "get": {
+                "description": "Returns runs ordered by id (newest first). Optionally filter by task_id and/or status.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "List runs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Filter by task ID",
+                        "name": "task_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (queued, running, completed, failed, timed_out, stopped, cancelled)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum results (1-200, default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Run"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/runs/{id}": {
+            "get": {
+                "description": "Returns a single run by id, including timing and finding counters.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "Get a run",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Run ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Run"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/runs/{id}/log": {
+            "get": {
+                "description": "Returns a UTF-8 page of the run's supervisor log starting at a byte offset. Pass next_offset back to tail.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "Read run log",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Run ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Byte offset to start from (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum bytes to return (default 65536, max 1048576)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.LogChunk"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/runs/{id}/output": {
+            "get": {
+                "description": "Downloads the raw Nuclei JSONL results for a run as application/x-ndjson.",
+                "produces": [
+                    "application/x-ndjson"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "Download raw run output",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Run ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Newline-delimited JSON results",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No output yet",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/runs/{id}/stop": {
+            "post": {
+                "description": "Cancels a queued run, or asks the worker to stop a running run. Stopping a running run is asynchronous.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "Stop a run",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Run ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Run cancelled while still queued",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Run"
+                        }
+                    },
+                    "202": {
+                        "description": "Stop requested for a running run",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Run already finished or is not active on this instance",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/scope": {
             "get": {
                 "description": "Returns all scope allowlist entries ordered by id. An empty allowlist makes the target check fail-closed.",
@@ -562,6 +810,47 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/tasks/{id}/run": {
+            "post": {
+                "description": "Validates the task's target/profile against the scope, freezes a config snapshot and queues a run. The worker picks it up and executes Nuclei.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "Queue a run for a task",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Run"
+                        }
+                    },
+                    "400": {
+                        "description": "Task not found, or its target is out of scope",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Task already has an active run",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -665,6 +954,130 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.Run": {
+            "type": "object",
+            "properties": {
+                "command_line": {
+                    "description": "Full nuclei command line that was executed",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Creation timestamp (read-only)",
+                    "type": "string"
+                },
+                "error_message": {
+                    "description": "Error message when the run failed",
+                    "type": "string"
+                },
+                "exit_code": {
+                    "description": "Nuclei process exit code (null if not run)",
+                    "type": "integer"
+                },
+                "findings_critical": {
+                    "description": "Critical findings",
+                    "type": "integer"
+                },
+                "findings_high": {
+                    "description": "High findings",
+                    "type": "integer"
+                },
+                "findings_info": {
+                    "description": "Info findings plus unknown severities",
+                    "type": "integer"
+                },
+                "findings_low": {
+                    "description": "Low findings",
+                    "type": "integer"
+                },
+                "findings_medium": {
+                    "description": "Medium findings",
+                    "type": "integer"
+                },
+                "finished_at": {
+                    "description": "Finish time (null until terminal)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Run identifier (read-only)",
+                    "type": "integer"
+                },
+                "log_path": {
+                    "description": "Path to the captured log file",
+                    "type": "string"
+                },
+                "nuclei_version": {
+                    "description": "Detected nuclei engine version",
+                    "type": "string"
+                },
+                "parse_errors": {
+                    "description": "Lines that failed to parse",
+                    "type": "integer"
+                },
+                "raw_output_path": {
+                    "description": "Path to the raw nuclei output file",
+                    "type": "string"
+                },
+                "requests_count": {
+                    "description": "Number of requests issued (not populated yet)",
+                    "type": "integer"
+                },
+                "results_total": {
+                    "description": "Total findings reported",
+                    "type": "integer"
+                },
+                "started_at": {
+                    "description": "Start time (null until claimed)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Current lifecycle status (see RunStatus)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.RunStatus"
+                        }
+                    ]
+                },
+                "targets_count": {
+                    "description": "Number of targets in the run",
+                    "type": "integer"
+                },
+                "task_id": {
+                    "description": "Identifier of the task that produced this run",
+                    "type": "integer"
+                },
+                "templates_version": {
+                    "description": "Detected nuclei templates version",
+                    "type": "string"
+                },
+                "trigger": {
+                    "description": "How the run was started: manual or schedule",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.RunStatus": {
+            "type": "string",
+            "enum": [
+                "queued",
+                "running",
+                "processing",
+                "completed",
+                "failed",
+                "timed_out",
+                "stopped",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "RunQueued",
+                "RunRunning",
+                "RunProcessing",
+                "RunCompleted",
+                "RunFailed",
+                "RunTimedOut",
+                "RunStopped",
+                "RunCancelled"
+            ]
+        },
         "github_com_mmk31585_Nuclei-manager_internal_domain.ScopeEntry": {
             "type": "object",
             "properties": {
@@ -764,6 +1177,27 @@ const docTemplate = `{
                     "description": "Human-readable error message",
                     "type": "string",
                     "example": "validation failed: name is required"
+                }
+            }
+        },
+        "internal_api.LogChunk": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Decoded text chunk (invalid bytes replaced)",
+                    "type": "string"
+                },
+                "eof": {
+                    "description": "True when there is no more data after this chunk",
+                    "type": "boolean"
+                },
+                "next_offset": {
+                    "description": "Offset to pass as the next page's offset when tailing",
+                    "type": "integer"
+                },
+                "offset": {
+                    "description": "Byte offset this chunk starts at",
+                    "type": "integer"
                 }
             }
         },
@@ -971,6 +1405,10 @@ const docTemplate = `{
         {
             "description": "Tasks that bind a target to a profile.",
             "name": "tasks"
+        },
+        {
+            "description": "Runs queued by a task and executed by the worker, including logs and raw output.",
+            "name": "runs"
         }
     ]
 }`

@@ -1,63 +1,78 @@
 # scanner-manager
 
-Foundation phase of a Nuclei vulnerability scan management service. It
-scaffolds the domain models (scope entries, targets, profiles, tasks plus
-placeholders for runs, findings, custom templates and suppressions), a
-MariaDB store via GORM, a scope allowlist matcher, and a Gin REST API for
-scope / targets / profiles / tasks CRUD.
+A Nuclei vulnerability scan management service.
 
-No Nuclei execution, workers, scheduler, queue, findings logic, auth, or
-frontend exists yet.
+## Phase 1 (done)
+Domain models (scope entries, targets, profiles, tasks, runs, findings, custom templates, suppressions), MariaDB store via GORM, scope allowlist matcher, Gin REST API for scope/targets/profiles/tasks CRUD.
+
+## Phase 2 (done)
+- Nuclei command builder (`internal/scanner/nuclei/args.go`) — builds args slices, blocks forbidden flags (`-code`, `-headless`, `-dast`, `-fuzz`, `-lfa`, `-env-vars`, `-update*`, `-reset`, `-sandbox`).
+- JSONL result parser (`internal/scanner/nuclei/result.go`) — extracts events, counts severities.
+- Binary probe (`internal/scanner/nuclei/probe.go`) — verifies nuclei binary has all required flags, parses version.
+- Process runner (`internal/scanner/nuclei/runner.go`) — `exec.CommandContext` with its own process group; stop = SIGTERM to group → grace → SIGKILL; 16 MiB stdout line cap.
+- Run queue + worker pool (`internal/runs/service.go`, `internal/worker/worker.go`) — `SELECT FOR UPDATE SKIP LOCKED` claiming, one active run per task, config snapshot at queue time, scope re-check before execute, graceful shutdown.
+- Run API (`internal/api/run_handler.go`) — start, list, get, stop, log, raw output.
 
 ## Requirements
 
 - Go 1.27+
 - MariaDB 11 (docker compose provided)
-- `jq` and `curl` for the smoke test
+- `nuclei` binary in PATH (or set `SM_NUCLEI_BIN`)
+- `jq` and `curl` for smoke tests
 
 ## Local setup
 
 ```bash
 cp .env.example .env
-# edit .env if needed (SM_DB_DSN, SM_HTTP_ADDR, SM_GIN_MODE)
+# edit .env if needed (SM_DB_DSN, SM_HTTP_ADDR, SM_GIN_MODE, SM_NUCLEI_BIN, SM_DATA_DIR, SM_CUSTOM_TEMPLATES_DIR)
 
 make db-up   # start MariaDB via docker compose
+make lab-up  # start Juice Shop at 127.0.0.1:3000
 make run     # start the API (binds to 127.0.0.1:8080 by default)
 ```
 
 In another terminal:
 
 ```bash
-make smoke   # end-to-end smoke test against the running API
+make smoke      # Phase 1 CRUD smoke test
+make smoke-run  # Phase 2 run smoke test (needs nuclei + lab)
 ```
+
+## Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SM_HTTP_ADDR` | `127.0.0.1:8080` | API listen address |
+| `SM_GIN_MODE` | `release` | Gin mode (`debug`, `release`, `test`) |
+| `SM_DB_DSN` | **required** | MariaDB DSN |
+| `SM_DATA_DIR` | `./data` | Directory for run logs/output |
+| `SM_NUCLEI_BIN` | `nuclei` | Path/name of nuclei binary |
+| `SM_CUSTOM_TEMPLATES_DIR` | `./custom-templates` | Root of custom template folders |
+| `SM_MAX_CONCURRENT_RUNS` | `2` | Worker pool size (1–16) |
+| `SM_WORKER_POLL` | `2s` | Worker poll interval (≥ 500ms) |
 
 ## Endpoints
 
 - `GET /healthz` — database health check
-- `GET    /api/v1/scope` — list scope entries
-- `POST   /api/v1/scope` — create scope entry `{kind, value, comment}`
-- `DELETE /api/v1/scope/:id`
-- `GET    /api/v1/targets` — list targets
-- `POST   /api/v1/targets` — create target (hosts are checked against scope)
-- `GET    /api/v1/targets/:id`
-- `PUT    /api/v1/targets/:id` — full replacement
-- `DELETE /api/v1/targets/:id` — 409 if a task uses it
-- `GET    /api/v1/profiles` — list profiles (built-in profiles seeded)
-- `POST   /api/v1/profiles` — create profile
-- `GET    /api/v1/profiles/:id`
-- `PUT    /api/v1/profiles/:id` — 409 for built-in profiles
-- `DELETE /api/v1/profiles/:id` — 409 for built-in profiles or if in use
-- `GET    /api/v1/tasks` — list tasks
-- `POST   /api/v1/tasks` — create task (target/profile must exist)
-- `GET    /api/v1/tasks/:id`
-- `PUT    /api/v1/tasks/:id` — full replacement
-- `DELETE /api/v1/tasks/:id`
+- Scope: `GET /api/v1/scope`, `POST /api/v1/scope`, `DELETE /api/v1/scope/:id`
+- Targets: `GET /api/v1/targets`, `POST /api/v1/targets`, `GET /api/v1/targets/:id`, `PUT /api/v1/targets/:id`, `DELETE /api/v1/targets/:id`
+- Profiles: `GET /api/v1/profiles`, `POST /api/v1/profiles`, `GET /api/v1/profiles/:id`, `PUT /api/v1/profiles/:id`, `DELETE /api/v1/profiles/:id`
+- Tasks: `GET /api/v1/tasks`, `POST /api/v1/tasks`, `GET /api/v1/tasks/:id`, `PUT /api/v1/tasks/:id`, `DELETE /api/v1/tasks/:id`
+- Runs: `POST /api/v1/tasks/:id/run`, `GET /api/v1/runs`, `GET /api/v1/runs/:id`, `POST /api/v1/runs/:id/stop`, `GET /api/v1/runs/:id/log`, `GET /api/v1/runs/:id/output`
 
-Configuration is via environment variables only (`SM_HTTP_ADDR`, `SM_GIN_MODE`,
-`SM_DB_DSN`). The API has no auth; keep it bound to localhost.
+No auth; keep the API bound to localhost.
 
 ## Makefile targets
 
-`make check` (fmt, vet, test, build), `make test`, `make vet`,
-`make fmt`, `make tidy`, `make build`, `make run`,
-`make db-up`, `make db-down`, `make smoke`.
+`make check` (fmt, vet, test, build), `make test`, `make test-race`, `make vet`, `make fmt`, `make tidy`, `make build`, `make run`, `make db-up`, `make db-down`, `make lab-up`, `make lab-down`, `make smoke`, `make smoke-run`.
+
+## Known limits (Phase 2)
+
+- Single service instance only.
+- After a hard crash, a scanner process may keep running until its container stops (no PID tracking).
+- No log rotation or run retention yet.
+- `custom_set` profiles run **only** that template folder (official templates are not included).
+- `probe_first` target field is ignored.
+- Raw output keeps request/response so files can be large.
+- No findings dedup/diff/status logic yet (Phase 3).
+- No scheduler/cron (Phase 3).
