@@ -25,6 +25,12 @@ definitions:
       exclude_tags:
         description: Exclude templates carrying any of these tags
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       id:
@@ -46,6 +52,12 @@ definitions:
         description: Restrict to these protocols (http, dns, tcp, ssl, websocket,
           whois, javascript, workflow)
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       rate_limit:
@@ -57,16 +69,34 @@ definitions:
       severity:
         description: Only run templates of these severities
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       tags:
         description: Only run templates with at least one of these tags
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       template_ids:
         description: Restrict to these exact template IDs
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       timeout_sec:
@@ -232,12 +262,24 @@ definitions:
       exclude:
         description: Hosts, IPs or CIDRs excluded from the scan
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       hosts:
         description: Hosts to scan (URLs, host:port, bare hosts or IPs); at least
           one required
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       id:
@@ -252,6 +294,12 @@ definitions:
       tags:
         description: Arbitrary labels for filtering and grouping
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       updated_at:
@@ -291,6 +339,12 @@ definitions:
       notify_on:
         description: Severities that trigger a notification
         items:
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
           type: string
         type: array
       profile_id:
@@ -703,8 +757,16 @@ paths:
         in: query
         name: task_id
         type: integer
-      - description: Filter by status (queued, running, completed, failed, timed_out,
-          stopped, cancelled)
+      - description: Filter by status
+        enum:
+        - queued
+        - running
+        - processing
+        - completed
+        - failed
+        - timed_out
+        - stopped
+        - cancelled
         in: query
         name: status
         type: string

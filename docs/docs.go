@@ -257,8 +257,18 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "queued",
+                            "running",
+                            "processing",
+                            "completed",
+                            "failed",
+                            "timed_out",
+                            "stopped",
+                            "cancelled"
+                        ],
                         "type": "string",
-                        "description": "Filter by status (queued, running, completed, failed, timed_out, stopped, cancelled)",
+                        "description": "Filter by status",
                         "name": "status",
                         "in": "query"
                     },
@@ -1095,7 +1105,14 @@ const docTemplate = `{
                     "description": "Exclude templates carrying any of these tags",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "id": {
@@ -1122,7 +1139,14 @@ const docTemplate = `{
                     "description": "Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "rate_limit": {
@@ -1137,21 +1161,42 @@ const docTemplate = `{
                     "description": "Only run templates of these severities",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "tags": {
                     "description": "Only run templates with at least one of these tags",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "template_ids": {
                     "description": "Restrict to these exact template IDs",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "timeout_sec": {
@@ -1373,14 +1418,28 @@ const docTemplate = `{
                     "description": "Hosts, IPs or CIDRs excluded from the scan",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "hosts": {
                     "description": "Hosts to scan (URLs, host:port, bare hosts or IPs); at least one required",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "id": {
@@ -1399,7 +1458,14 @@ const docTemplate = `{
                     "description": "Arbitrary labels for filtering and grouping",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "updated_at": {
@@ -1455,7 +1521,14 @@ const docTemplate = `{
                     "description": "Severities that trigger a notification",
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "low",
+                            "medium",
+                            "high",
+                            "critical"
+                        ]
                     }
                 },
                 "profile_id": {
