@@ -2,6 +2,4 @@ bin/
 .env
 *.out
 data/
-docs/
-
-docs/
+./nuclei-templates
