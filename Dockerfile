@@ -24,9 +24,6 @@ RUN apk add --no-cache wget \
     && rm nuclei_3.11.1_linux_amd64.zip \
     && nuclei -version
 
-# Copy nuclei templates from build context (host)
-COPY nuclei-templates /home/appuser/nuclei-templates
-
 # Copy custom templates
 COPY custom-templates /app/custom-templates
 
@@ -34,8 +31,8 @@ COPY custom-templates /app/custom-templates
 COPY --from=builder /scanner-manager /usr/local/bin/scanner-manager
 
 # Create directories
-RUN mkdir -p /app/data/runs /app/custom-templates \
-    && chown -R appuser:appuser /app /home/appuser/nuclei-templates
+RUN mkdir -p /app/data/runs /app/custom-templates /nuclei-templates \
+    && chown -R appuser:appuser /app /nuclei-templates
 
 USER appuser
 
@@ -43,7 +40,6 @@ ENV SM_HTTP_ADDR=0.0.0.0:8080 \
     SM_GIN_MODE=release \
     SM_DATA_DIR=/app/data \
     SM_NUCLEI_BIN=nuclei \
-    SM_CUSTOM_TEMPLATES_DIR=/app/custom-templates \
     SM_NUCLEI_TEMPLATES_DIR=/home/appuser/nuclei-templates \
     SM_MAX_CONCURRENT_RUNS=2 \
     SM_WORKER_POLL=2s
