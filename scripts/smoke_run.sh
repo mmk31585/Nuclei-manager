@@ -3,7 +3,15 @@ set -euo pipefail
 command -v jq >/dev/null || { echo "jq is required"; exit 2; }
 
 BASE="${BASE:-http://127.0.0.1:8080}"
-LAB="${LAB:-http://127.0.0.1:3000}"
+# LAB target: use Juice Shop container IP
+if [[ "${LAB:-}" == "" ]]; then
+  if [[ "$BASE" == http://127.0.0.1* ]] || [[ "$BASE" == http://localhost* ]]; then
+    # Get Juice Shop container IP from docker network
+    LAB="http://$(docker inspect scanner-juiceshop-1 --format '{{.NetworkSettings.Networks.scanner_scanner-network.IPAddress}}' 2>/dev/null || echo "172.20.0.3"):3000"
+  else
+    LAB="http://127.0.0.1:3000"
+  fi
+fi
 TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 FAILED=0
@@ -30,19 +38,29 @@ wait_terminal() { # wait_terminal <run-id>  -> sets STATUS
   done
 }
 
-for _ in $(seq 1 30); do curl -sf -o /dev/null "$LAB" && break; sleep 1; done
-curl -sf -o /dev/null "$LAB" || { echo "lab target $LAB is not reachable (run: make lab-up)"; exit 2; }
+# Check reachability using 127.0.0.1:3000 (host port mapping)
+LAB_CHECK="${LAB_CHECK:-http://127.0.0.1:3000}"
+for _ in $(seq 1 30); do curl -sf -o /dev/null "$LAB_CHECK" && break; sleep 1; done
+curl -sf -o /dev/null "$LAB_CHECK" || { echo "lab target $LAB_CHECK is not reachable (run: make lab-up)"; exit 2; }
 
 SUFFIX="$$-$RANDOM"
 
-# scope: 127.0.0.1 only (reuse it when it already exists)
+# scope: 127.0.0.1 and Juice Shop container IP
 SCOPE_CREATED=0
 call POST /api/v1/scope '{"kind":"ip","value":"127.0.0.1"}'
 if [[ "$CODE" == "201" ]]; then
-  SCOPE_ID="$(jq -r .id "$TMP")"; SCOPE_CREATED=1; echo "PASS create scope"
+  SCOPE_ID="$(jq -r .id "$TMP")"; SCOPE_CREATED=1; echo "PASS create scope 127.0.0.1"
 else
   call GET /api/v1/scope
   SCOPE_ID="$(jq -r '.[] | select(.value=="127.0.0.1") | .id' "$TMP")"
+fi
+# Add Juice Shop container IP to scope
+JUICESHOP_IP=$(docker inspect scanner-juiceshop-1 --format '{{.NetworkSettings.Networks.scanner_scanner-network.IPAddress}}' 2>/dev/null || echo "172.20.0.3")
+call POST /api/v1/scope "{\"kind\":\"ip\",\"value\":\"$JUICESHOP_IP\"}"
+if [[ "$CODE" == "201" ]]; then
+  echo "PASS create scope $JUICESHOP_IP"
+else
+  echo "PASS scope $JUICESHOP_IP already exists"
 fi
 
 call POST /api/v1/targets "{\"name\":\"smoke-run-$SUFFIX\",\"hosts\":[\"$LAB\"]}";  check 201 "create target"
