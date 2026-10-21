@@ -44,7 +44,7 @@ type Task struct {
 	// Number of most recent runs to retain (1-1000, defaults to 20)
 	RetentionKeepLast int `json:"retention_keep_last"`
 	// Severities that trigger a notification
-	NotifyOn StringList `json:"notify_on" gorm:"type:text;not null"`
+	NotifyOn StringList `json:"notify_on" enums:"info,low,medium,high,critical" gorm:"type:text;not null"`
 	// Creation timestamp (read-only)
 	CreatedAt time.Time `json:"created_at"`
 	// Last update timestamp (read-only)

@@ -19,7 +19,7 @@ type Profile struct {
 	// Exclude templates carrying any of these tags
 	ExcludeTags StringList `json:"exclude_tags" gorm:"type:text;not null"`
 	// Only run templates of these severities
-	Severity StringList `json:"severity" gorm:"type:text;not null"`
+	Severity StringList `json:"severity" enums:"info,low,medium,high,critical" gorm:"type:text;not null"`
 	// Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)
 	Protocols StringList `json:"protocols" gorm:"type:text;not null"`
 	// Restrict to these exact template IDs
