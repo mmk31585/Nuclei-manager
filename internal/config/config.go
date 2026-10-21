@@ -17,7 +17,7 @@ type Config struct {
 	DataDir              string
 	NucleiBin            string
 	CustomTemplatesDir   string
-	OfficialTemplatesDir string
+	NucleiTemplatesDir string
 	MaxConcurrentRuns    int
 	WorkerPoll           time.Duration
 	SwaggerHost          string
@@ -52,8 +52,10 @@ func Load() (Config, error) {
 	if cfg.CustomTemplatesDir, err = filepath.Abs(getenv("SM_CUSTOM_TEMPLATES_DIR", "./custom-templates")); err != nil {
 		return Config{}, err
 	}
-	if cfg.OfficialTemplatesDir, err = filepath.Abs(getenv("SM_OFFICIAL_TEMPLATES_DIR", "")); err != nil {
-		return Config{}, err
+	if v := getenv("SM_NUCLEI_TEMPLATES_DIR", ""); v != "" {
+		if cfg.NucleiTemplatesDir, err = filepath.Abs(v); err != nil {
+			return Config{}, err
+		}
 	}
 	n, err := strconv.Atoi(getenv("SM_MAX_CONCURRENT_RUNS", "2"))
 	if err != nil || n < 1 || n > 16 {

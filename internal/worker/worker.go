@@ -28,7 +28,7 @@ var (
 type Config struct {
 	DataDir              string
 	CustomTemplatesDir   string
-	OfficialTemplatesDir string
+	NucleiTemplatesDir string
 	MaxConcurrent        int
 	Poll                 time.Duration
 	Nuclei               nuclei.Info
@@ -220,9 +220,9 @@ func (w *Worker) prepare(ctx context.Context, run *domain.Run) (*prepared, error
 			return nil, err
 		}
 		paths = []string{dirPath}
-	} else if w.cfg.OfficialTemplatesDir != "" {
+	} else if w.cfg.NucleiTemplatesDir != "" {
 		// Use official Nuclei templates when no custom set is specified
-		paths = []string{w.cfg.OfficialTemplatesDir}
+		paths = []string{w.cfg.NucleiTemplatesDir}
 	}
 	args, err := nuclei.BuildArgs(nuclei.Options{
 		TargetsFile: targetsPath, ExcludeHosts: exclude, TemplatePaths: paths,

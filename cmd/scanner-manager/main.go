@@ -66,8 +66,8 @@ func run() error {
 	gin.SetMode(cfg.GinMode)
 
 	dirs := []string{cfg.DataDir, filepath.Join(cfg.DataDir, "runs"), cfg.CustomTemplatesDir}
-	if cfg.OfficialTemplatesDir != "" {
-		dirs = append(dirs, cfg.OfficialTemplatesDir)
+	if cfg.NucleiTemplatesDir != "" {
+		dirs = append(dirs, cfg.NucleiTemplatesDir)
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0o700); err != nil {
@@ -110,7 +110,7 @@ func run() error {
 	wk := worker.New(worker.Config{
 		DataDir:              cfg.DataDir,
 		CustomTemplatesDir:   cfg.CustomTemplatesDir,
-		OfficialTemplatesDir: cfg.OfficialTemplatesDir,
+		NucleiTemplatesDir: cfg.NucleiTemplatesDir,
 		MaxConcurrent:        cfg.MaxConcurrentRuns,
 		Poll:                 cfg.WorkerPoll,
 		Nuclei:               info,
