@@ -1582,6 +1582,13 @@ const docTemplate = `{
                     "description": "True when there is no more data after this chunk",
                     "type": "boolean"
                 },
+                "lines": {
+                    "description": "Decoded text chunk split into individual lines for easier reading",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "next_offset": {
                     "description": "Offset to pass as the next page's offset when tailing",
                     "type": "integer"

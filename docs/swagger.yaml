@@ -382,6 +382,11 @@ definitions:
       eof:
         description: True when there is no more data after this chunk
         type: boolean
+      lines:
+        description: Decoded text chunk split into individual lines for easier reading
+        items:
+          type: string
+        type: array
       next_offset:
         description: Offset to pass as the next page's offset when tailing
         type: integer
