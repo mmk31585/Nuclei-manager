@@ -27,6 +27,8 @@ type LogChunk struct {
 	Eof bool `json:"eof"`
 	// Decoded text chunk (invalid bytes replaced)
 	Data string `json:"data"`
+	// Decoded text chunk split into individual lines for easier reading
+	Lines []string `json:"lines"`
 }
 
 func writeError(c *gin.Context, err error) {

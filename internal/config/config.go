@@ -49,7 +49,10 @@ func Load() (Config, error) {
 	if cfg.DataDir, err = filepath.Abs(getenv("SM_DATA_DIR", "./data")); err != nil {
 		return Config{}, err
 	}
-	if cfg.CustomTemplatesDir, err = filepath.Abs(getenv("SM_CUSTOM_TEMPLATES_DIR", "./custom-templates")); err != nil {
+	// Custom templates live alongside the binary by default; they are not
+	// configurable via environment (use SM_NUCLEI_TEMPLATES_DIR for the
+	// official Nuclei templates).
+	if cfg.CustomTemplatesDir, err = filepath.Abs("./custom-templates"); err != nil {
 		return Config{}, err
 	}
 	if v := getenv("SM_NUCLEI_TEMPLATES_DIR", ""); v != "" {

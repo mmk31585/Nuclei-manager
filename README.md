@@ -24,7 +24,7 @@ Domain models (scope entries, targets, profiles, tasks, runs, findings, custom t
 
 ```bash
 cp .env.example .env
-# edit .env if needed (SM_DB_DSN, SM_HTTP_ADDR, SM_GIN_MODE, SM_NUCLEI_BIN, SM_DATA_DIR, SM_CUSTOM_TEMPLATES_DIR)
+# edit .env if needed (SM_DB_DSN, SM_HTTP_ADDR, SM_GIN_MODE, SM_NUCLEI_BIN, SM_DATA_DIR, SM_NUCLEI_TEMPLATES_DIR)
 
 make db-up   # start MariaDB via docker compose
 make lab-up  # start Juice Shop at 127.0.0.1:3000
@@ -47,8 +47,7 @@ make smoke-run  # Phase 2 run smoke test (needs nuclei + lab)
 | `SM_DB_DSN` | **required** | MariaDB DSN |
 | `SM_DATA_DIR` | `./data` | Directory for run logs/output |
 | `SM_NUCLEI_BIN` | `nuclei` | Path/name of nuclei binary |
-| `SM_CUSTOM_TEMPLATES_DIR` | `./custom-templates` | Root of custom template folders |
-| `SM_NUCLEI_TEMPLATES_DIR` | (empty) | Directory of the official Nuclei templates (e.g. `/home/space/nuclei-templates`) |
+| | `SM_NUCLEI_TEMPLATES_DIR` | (empty) | Directory of the official Nuclei templates (e.g. `/home/space/nuclei-templates`) |
 | `SM_MAX_CONCURRENT_RUNS` | `2` | Worker pool size (1–16) |
 | `SM_WORKER_POLL` | `2s` | Worker poll interval (≥ 500ms) |
 | `SM_SWAGGER_HOST` | `localhost` | Host shown in Swagger UI for "Try it out" requests. Defaults to `localhost:<SM_HTTP_ADDR port>`; set e.g. `scan.example.com:8443` for a deployment. |

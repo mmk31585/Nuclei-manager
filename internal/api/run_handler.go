@@ -74,7 +74,7 @@ func (h *RunHandler) CreateForTask(c *gin.Context) {
 // @Tags         runs
 // @Produce      json
 // @Param        task_id  query     int     false  "Filter by task ID"
-// @Param        status   query     string  false  "Filter by status (queued, running, completed, failed, timed_out, stopped, cancelled)"
+// @Param        status   query     string  false  "Filter by status"  Enums(queued, running, processing, completed, failed, timed_out, stopped, cancelled)
 // @Param        limit    query     int     false  "Maximum results (1-200, default 50)"
 // @Success      200      {array}   domain.Run
 // @Failure      400      {object}  ErrorResponse
@@ -223,7 +223,11 @@ func (h *RunHandler) Log(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"offset": offset, "next_offset": next, "eof": eof, "data": data})
+	lines := []string{}
+	if data != "" {
+		lines = strings.Split(strings.TrimRight(data, "\n"), "\n")
+	}
+	c.JSON(http.StatusOK, gin.H{"offset": offset, "next_offset": next, "eof": eof, "data": data, "lines": lines})
 }
 
 // Output godoc

@@ -30,17 +30,20 @@ COPY custom-templates /app/custom-templates
 # Copy binary
 COPY --from=builder /scanner-manager /usr/local/bin/scanner-manager
 
-# Create directories
-RUN mkdir -p /app/data/runs /app/custom-templates /nuclei-templates \
-    && chown -R appuser:appuser /app /nuclei-templates
+# Create directories and nuclei config (suppresses .nuclei-ignore warnings)
+RUN mkdir -p /app/data/runs /app/custom-templates /nuclei-templates /home/appuser/.config/nuclei /home/appuser/.config/uncover \
+    && echo "providers: {}" > /home/appuser/.config/uncover/provider-config.yaml \
+    && echo "ignore:" > /home/appuser/.config/nuclei/.nuclei-ignore \
+    && chown -R appuser:appuser /app /nuclei-templates /home/appuser/.config
 
 USER appuser
+WORKDIR /app
 
 ENV SM_HTTP_ADDR=0.0.0.0:8080 \
     SM_GIN_MODE=release \
     SM_DATA_DIR=/app/data \
     SM_NUCLEI_BIN=nuclei \
-    SM_NUCLEI_TEMPLATES_DIR=/home/appuser/nuclei-templates \
+    SM_NUCLEI_TEMPLATES_DIR=/nuclei-templates \
     SM_MAX_CONCURRENT_RUNS=2 \
     SM_WORKER_POLL=2s
 
