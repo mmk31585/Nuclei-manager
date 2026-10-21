@@ -11,16 +11,17 @@ import (
 )
 
 type Config struct {
-	HTTPAddr           string
-	DBDSN              string
-	GinMode            string
-	DataDir            string
-	NucleiBin          string
-	CustomTemplatesDir string
-	MaxConcurrentRuns  int
-	WorkerPoll         time.Duration
-	SwaggerHost        string
-	SwaggerBasePath    string
+	HTTPAddr             string
+	DBDSN                string
+	GinMode              string
+	DataDir              string
+	NucleiBin            string
+	CustomTemplatesDir   string
+	OfficialTemplatesDir string
+	MaxConcurrentRuns    int
+	WorkerPoll           time.Duration
+	SwaggerHost          string
+	SwaggerBasePath      string
 }
 
 func Load() (Config, error) {
@@ -49,6 +50,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.CustomTemplatesDir, err = filepath.Abs(getenv("SM_CUSTOM_TEMPLATES_DIR", "./custom-templates")); err != nil {
+		return Config{}, err
+	}
+	if cfg.OfficialTemplatesDir, err = filepath.Abs(getenv("SM_OFFICIAL_TEMPLATES_DIR", "")); err != nil {
 		return Config{}, err
 	}
 	n, err := strconv.Atoi(getenv("SM_MAX_CONCURRENT_RUNS", "2"))

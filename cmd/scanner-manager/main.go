@@ -65,7 +65,11 @@ func run() error {
 	}
 	gin.SetMode(cfg.GinMode)
 
-	for _, d := range []string{cfg.DataDir, filepath.Join(cfg.DataDir, "runs"), cfg.CustomTemplatesDir} {
+	dirs := []string{cfg.DataDir, filepath.Join(cfg.DataDir, "runs"), cfg.CustomTemplatesDir}
+	if cfg.OfficialTemplatesDir != "" {
+		dirs = append(dirs, cfg.OfficialTemplatesDir)
+	}
+	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			return fmt.Errorf("create dir %s: %w", d, err)
 		}
@@ -104,11 +108,12 @@ func run() error {
 	scopeSvc := scope.NewService(st.Scope)
 	runSvc := runs.NewService(st.Runs, st.Tasks, st.Targets, st.Profiles, scopeSvc)
 	wk := worker.New(worker.Config{
-		DataDir:            cfg.DataDir,
-		CustomTemplatesDir: cfg.CustomTemplatesDir,
-		MaxConcurrent:      cfg.MaxConcurrentRuns,
-		Poll:               cfg.WorkerPoll,
-		Nuclei:             info,
+		DataDir:              cfg.DataDir,
+		CustomTemplatesDir:   cfg.CustomTemplatesDir,
+		OfficialTemplatesDir: cfg.OfficialTemplatesDir,
+		MaxConcurrent:        cfg.MaxConcurrentRuns,
+		Poll:                 cfg.WorkerPoll,
+		Nuclei:               info,
 	}, st.Runs, scopeSvc, &nuclei.Runner{Bin: info.Path}, runSvc.Wake())
 	wk.Start(ctx)
 
