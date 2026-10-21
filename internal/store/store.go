@@ -23,7 +23,7 @@ type Store struct {
 
 func Open(dsn string) (*Store, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
