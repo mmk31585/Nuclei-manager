@@ -51,6 +51,16 @@ const (
 	TriggerSchedule = "schedule"
 )
 
+// Run stages describe which pass of a run is currently executing.
+const (
+	// RunStageWeb is the main pass over the web targets.
+	RunStageWeb = "web"
+	// RunStageNetwork is the optional second pass over the discovered network ports.
+	RunStageNetwork = "network"
+	// RunStageDone is set once every pass has finished.
+	RunStageDone = "done"
+)
+
 // Run is one execution of a task. It records the command, versions, timing and
 // finding counters produced by Nuclei.
 type Run struct {
@@ -76,6 +86,8 @@ type Run struct {
 	TemplatesVersion string `json:"templates_version" gorm:"size:64"`
 	// Number of targets in the run
 	TargetsCount int `json:"targets_count"`
+	// Stage of the run currently executing (see RunStage constants)
+	Stage string `json:"stage" gorm:"size:32;index"`
 	// Number of requests issued (not populated yet)
 	RequestsCount int `json:"requests_count"`
 	// Total findings reported
@@ -138,6 +150,8 @@ type RunRepo interface {
 	// ClaimNext atomically moves the oldest queued run to running. Returns (nil, nil) when none.
 	ClaimNext(ctx context.Context) (*Run, error)
 	SetExecution(ctx context.Context, id uint, e RunExecution) error
+	// SetStage records the pass of the run that is currently executing.
+	SetStage(ctx context.Context, id uint, stage string) error
 	UpdateProgress(ctx context.Context, id uint, c RunCounters) error
 	Finish(ctx context.Context, id uint, f RunFinish) error
 	// CancelQueued cancels a run only if it is still queued; reports whether it did.
@@ -181,8 +195,22 @@ func severityRank(s Severity) (int, bool) {
 }
 
 // EffectiveSeverities combines the profile's severity filter with the task's severity floor.
-// Empty profile filter means "all severities at or above the floor".
+//
+// An empty profile filter and an empty floor mean "no severity filter": the
+// result is empty and no -severity flag is passed to nuclei, so the scan runs
+// every template and reports every finding.
 func EffectiveSeverities(profile []string, floor Severity) ([]string, error) {
+	if floor == "" {
+		out := make([]string, 0, len(profile))
+		for _, p := range profile {
+			s := Severity(strings.ToLower(strings.TrimSpace(p)))
+			if !s.Valid() {
+				return nil, invalid("unknown severity %q", p)
+			}
+			out = append(out, string(s))
+		}
+		return out, nil
+	}
 	min, ok := severityRank(floor)
 	if !ok {
 		return nil, invalid("unknown min_severity %q", floor)

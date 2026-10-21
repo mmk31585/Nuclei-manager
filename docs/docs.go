@@ -400,7 +400,7 @@ const docTemplate = `{
         },
         "/runs/{id}/output": {
             "get": {
-                "description": "Downloads the raw Nuclei JSONL results for a run as application/x-ndjson.",
+                "description": "Downloads the raw Nuclei JSONL results for a run as application/x-ndjson. The results of the web pass and of the optional network pass are merged; pass \"pass=web\" or \"pass=network\" to download only one of them. Returns 204 if the run produced no findings.",
                 "produces": [
                     "application/x-ndjson"
                 ],
@@ -415,6 +415,16 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "enum": [
+                            "web",
+                            "network"
+                        ],
+                        "type": "string",
+                        "description": "Only return the given pass",
+                        "name": "pass",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -423,6 +433,53 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    "204": {
+                        "description": "No findings produced"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No output yet",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/runs/{id}/output.pdf": {
+            "get": {
+                "description": "Generates and downloads a PDF report of the run's Nuclei findings (web + network passes merged). Returns 204 if the run produced no findings.",
+                "produces": [
+                    "application/pdf"
+                ],
+                "tags": [
+                    "runs"
+                ],
+                "summary": "Download run output as PDF",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Run ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF report",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "204": {
+                        "description": "No findings produced"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -786,7 +843,6 @@ const docTemplate = `{
                 "tags": [
                     "targets"
                 ],
-                "summary": "Delete a target",
                 "parameters": [
                     {
                         "type": "integer",
@@ -814,6 +870,85 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Target is used by one or more tasks",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/targets/{id}/discover": {
+            "post": {
+                "description": "Triggers a new port/service discovery run in the background. Returns 202.",
+                "tags": [
+                    "targets"
+                ],
+                "summary": "Re-run discovery for a target",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Target ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/targets/{id}/endpoints": {
+            "get": {
+                "description": "Returns all discovered ports/services for a target.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "targets"
+                ],
+                "summary": "List discovered endpoints for a target",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Target ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.TargetEndpoint"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
@@ -1105,14 +1240,7 @@ const docTemplate = `{
                     "description": "Exclude templates carrying any of these tags",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "id": {
@@ -1139,14 +1267,7 @@ const docTemplate = `{
                     "description": "Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "rate_limit": {
@@ -1161,42 +1282,21 @@ const docTemplate = `{
                     "description": "Only run templates of these severities",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "tags": {
                     "description": "Only run templates with at least one of these tags",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "template_ids": {
                     "description": "Restrict to these exact template IDs",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "timeout_sec": {
@@ -1279,6 +1379,10 @@ const docTemplate = `{
                 "results_total": {
                     "description": "Total findings reported",
                     "type": "integer"
+                },
+                "stage": {
+                    "description": "Stage of the run currently executing (see RunStage constants)",
+                    "type": "string"
                 },
                 "started_at": {
                     "description": "Start time (null until claimed)",
@@ -1414,40 +1518,53 @@ const docTemplate = `{
                     "description": "Creation timestamp (read-only)",
                     "type": "string"
                 },
+                "custom_ports": {
+                    "description": "Custom ports when port_scope is custom (e.g. \"80,443,8000-9000\")",
+                    "type": "string"
+                },
+                "discovery_status": {
+                    "description": "Discovery status: pending, running, done, failed",
+                    "type": "string"
+                },
+                "endpoints": {
+                    "description": "Discovered endpoints",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.TargetEndpoint"
+                    }
+                },
                 "exclude": {
                     "description": "Hosts, IPs or CIDRs excluded from the scan",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "hosts": {
                     "description": "Hosts to scan (URLs, host:port, bare hosts or IPs); at least one required",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "id": {
                     "description": "Target identifier (read-only, assigned by the server)",
                     "type": "integer"
                 },
+                "last_discovery_at": {
+                    "description": "Last discovery timestamp",
+                    "type": "string"
+                },
+                "last_discovery_error": {
+                    "description": "Last discovery error message",
+                    "type": "string"
+                },
                 "name": {
                     "description": "Unique target name (1-191 characters)",
+                    "type": "string"
+                },
+                "port_scope": {
+                    "description": "Port discovery scope: default, top100, top1000, all, custom",
                     "type": "string"
                 },
                 "probe_first": {
@@ -1458,18 +1575,48 @@ const docTemplate = `{
                     "description": "Arbitrary labels for filtering and grouping",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "updated_at": {
                     "description": "Last update timestamp (read-only)",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_mmk31585_Nuclei-manager_internal_domain.TargetEndpoint": {
+            "type": "object",
+            "properties": {
+                "first_seen_at": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_web": {
+                    "type": "boolean"
+                },
+                "last_seen_at": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "scheme": {
+                    "description": "http, https, or empty",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "naabu, httpx, manual",
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "integer"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -1505,8 +1652,12 @@ const docTemplate = `{
                     "description": "Task identifier (read-only)",
                     "type": "integer"
                 },
+                "last_run_at": {
+                    "description": "Last scheduled run time",
+                    "type": "string"
+                },
                 "min_severity": {
-                    "description": "Minimum severity reported by this task (defaults to medium)",
+                    "description": "Minimum severity reported by this task (optional, no floor by default)",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Severity"
@@ -1517,18 +1668,22 @@ const docTemplate = `{
                     "description": "Unique task name (1-191 characters)",
                     "type": "string"
                 },
+                "network_protocols": {
+                    "description": "Protocols to use for network port scan (e.g. \"tcp,javascript\")",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "next_run_at": {
+                    "description": "Next scheduled run time",
+                    "type": "string"
+                },
                 "notify_on": {
                     "description": "Severities that trigger a notification",
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "enum": [
-                            "info",
-                            "low",
-                            "medium",
-                            "high",
-                            "critical"
-                        ]
+                        "type": "string"
                     }
                 },
                 "profile_id": {
@@ -1539,6 +1694,10 @@ const docTemplate = `{
                     "description": "Number of most recent runs to retain (1-1000, defaults to 20)",
                     "type": "integer"
                 },
+                "scan_network_ports": {
+                    "description": "Also scan discovered non-web ports with network templates (default false)",
+                    "type": "boolean"
+                },
                 "schedule_type": {
                     "description": "Schedule type: once or cron (defaults to once)",
                     "allOf": [
@@ -1546,6 +1705,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScheduleType"
                         }
                     ]
+                },
+                "skip_discovery": {
+                    "description": "Skip port discovery before run (default false)",
+                    "type": "boolean"
                 },
                 "target_id": {
                     "description": "Identifier of the target to scan (must exist)",
@@ -1745,6 +1908,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Public staging estate"
                 },
+                "custom_ports": {
+                    "description": "Custom ports (e.g. \"80,443,8000-9000\"), used only when port_scope is custom",
+                    "type": "string",
+                    "example": "80,443,8000-9000"
+                },
                 "exclude": {
                     "description": "Hosts, IPs or CIDRs excluded from the scan",
                     "type": "array",
@@ -1769,6 +1937,11 @@ const docTemplate = `{
                     "description": "Unique target name",
                     "type": "string",
                     "example": "staging-web"
+                },
+                "port_scope": {
+                    "description": "Port scope for discovery: default, top100, top1000, all, custom (default all)",
+                    "type": "string",
+                    "example": "all"
                 },
                 "probe_first": {
                     "description": "Probe hosts before scanning; defaults to true when omitted",
@@ -1812,18 +1985,29 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "min_severity": {
-                    "description": "Minimum severity reported",
+                    "description": "Minimum severity reported (optional, no floor by default)",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Severity"
                         }
                     ],
-                    "example": "medium"
+                    "example": "info"
                 },
                 "name": {
                     "description": "Unique task name",
                     "type": "string",
                     "example": "nightly-staging"
+                },
+                "network_protocols": {
+                    "description": "Protocols to use for network port scan (e.g. \"tcp,javascript\")",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "tcp",
+                        "javascript"
+                    ]
                 },
                 "notify_on": {
                     "description": "Severities that trigger a notification",
@@ -1846,6 +2030,10 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 20
                 },
+                "scan_network_ports": {
+                    "description": "Also scan discovered non-web ports with network templates (default false)",
+                    "type": "boolean"
+                },
                 "schedule_type": {
                     "description": "Schedule type: once or cron",
                     "allOf": [
@@ -1854,6 +2042,10 @@ const docTemplate = `{
                         }
                     ],
                     "example": "cron"
+                },
+                "skip_discovery": {
+                    "description": "Skip port discovery before run (default false)",
+                    "type": "boolean"
                 },
                 "target_id": {
                     "description": "Target to scan (must exist)",

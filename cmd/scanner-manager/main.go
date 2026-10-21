@@ -16,8 +16,10 @@ import (
 
 	"github.com/mmk31585/Nuclei-manager/internal/api"
 	"github.com/mmk31585/Nuclei-manager/internal/config"
+	"github.com/mmk31585/Nuclei-manager/internal/discovery"
 	"github.com/mmk31585/Nuclei-manager/internal/runs"
 	"github.com/mmk31585/Nuclei-manager/internal/scanner/nuclei"
+	"github.com/mmk31585/Nuclei-manager/internal/scheduler"
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
 	"github.com/mmk31585/Nuclei-manager/internal/store"
 	"github.com/mmk31585/Nuclei-manager/internal/worker"
@@ -106,14 +108,29 @@ func run() error {
 	}
 
 	scopeSvc := scope.NewService(st.Scope)
+	discoveryWorker := discovery.NewWorker(cfg, discovery.New(), st.TargetEndpoints, st.Targets)
 	runSvc := runs.NewService(st.Runs, st.Tasks, st.Targets, st.Profiles, scopeSvc)
+	sched := scheduler.New(cfg, st.Tasks, runSvc)
+	sched.Start(ctx)
 	wk := worker.New(worker.Config{
-		DataDir:              cfg.DataDir,
-		CustomTemplatesDir:   cfg.CustomTemplatesDir,
+		DataDir:            cfg.DataDir,
+		CustomTemplatesDir: cfg.CustomTemplatesDir,
 		NucleiTemplatesDir: cfg.NucleiTemplatesDir,
-		MaxConcurrent:        cfg.MaxConcurrentRuns,
-		Poll:                 cfg.WorkerPoll,
-		Nuclei:               info,
+		MaxConcurrent:      cfg.MaxConcurrentRuns,
+		Poll:               cfg.WorkerPoll,
+		Nuclei:             info,
+		Discovery:          discovery.New(),
+		DiscoveryOpts: discovery.Options{
+			PortScope: "all",
+			Rate:      cfg.DiscoveryRate,
+			TimeoutMs: cfg.DiscoveryTimeoutMs,
+			ScanType:  cfg.NaabuScanType,
+			NaabuPath: cfg.NaabuPath,
+			HttpxPath: cfg.HttpxPath,
+		},
+		DiscoveryTimeout: cfg.DiscoveryTimeout,
+		TargetEndpoints:  st.TargetEndpoints,
+		Targets:          st.Targets,
 	}, st.Runs, scopeSvc, &nuclei.Runner{Bin: info.Path}, runSvc.Wake())
 	wk.Start(ctx)
 
@@ -122,6 +139,7 @@ func run() error {
 		Scope:           scopeSvc,
 		ScopeRepo:       st.Scope,
 		Targets:         st.Targets,
+		TargetEndpoints: st.TargetEndpoints,
 		Profiles:        st.Profiles,
 		Tasks:           st.Tasks,
 		Runs:            runSvc,
@@ -130,6 +148,7 @@ func run() error {
 		DataDir:         cfg.DataDir,
 		SwaggerHost:     cfg.SwaggerHost,
 		SwaggerBasePath: cfg.SwaggerBasePath,
+		Discovery:       discoveryWorker,
 	})
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: router, ReadHeaderTimeout: 10 * time.Second}
 
@@ -154,6 +173,7 @@ func run() error {
 	if err := srv.Shutdown(shutdownCtx); err != nil && srvErr == nil {
 		srvErr = err
 	}
+	sched.Stop()
 	wk.Wait() // running scans are stopped by ctx cancellation and finalized in the DB before we close it
 	return srvErr
 }

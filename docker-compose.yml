@@ -19,21 +19,34 @@ services:
       - scanner-network
 
   app:
+    container_name: scanner-manager
     build:
       context: .
       dockerfile: Dockerfile
     environment:
       SM_HTTP_ADDR: 0.0.0.0:8080
       SM_GIN_MODE: release
-      SM_DB_DSN: scanner:scanner@tcp(127.0.0.1:3306)/scanner?charset=utf8mb4&parseTime=True&loc=UTC
+      SM_DB_DSN: scanner:scanner@tcp(db:3306)/scanner?charset=utf8mb4&parseTime=True&loc=UTC
       SM_DATA_DIR: /app/data
       SM_NUCLEI_BIN: nuclei
+      SM_CUSTOM_TEMPLATES_DIR: /app/custom-templates
       SM_NUCLEI_TEMPLATES_DIR: /nuclei-templates
       SM_MAX_CONCURRENT_RUNS: 2
       SM_WORKER_POLL: 2s
+      SM_SCHEDULER_POLL: 30s
+      SM_SWAGGER_HOST: ""
+      SM_SWAGGER_BASE_PATH: "/api/v1"
+      NAABU_PATH: naabu
+      HTTPX_PATH: httpx
+      DISCOVERY_RATE: "1000"
+      DISCOVERY_TIMEOUT_MS: "1000"
+      DISCOVERY_MAX_CONCURRENT: "2"
+      DISCOVERY_TIMEOUT: "5m"
+      NAABU_SCAN_TYPE: "c"
     ports:
-      - "127.0.0.1:8080:8080"
-    network_mode: host
+      - "8080:8080"
+    networks:
+      - scanner-network
     depends_on:
       db:
         condition: service_healthy
@@ -45,7 +58,7 @@ services:
   juiceshop:
     image: bkimminich/juice-shop
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     expose:
       - "3000"
     networks:

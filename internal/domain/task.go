@@ -3,6 +3,8 @@ package domain
 import (
 	"strings"
 	"time"
+
+	"github.com/mmk31585/Nuclei-manager/internal/cron"
 )
 
 // ScheduleType controls how a task is (or will be) executed.
@@ -33,7 +35,7 @@ type Task struct {
 	CronExpr string `json:"cron_expr" gorm:"size:64"`
 	// IANA timezone for the schedule (defaults to UTC)
 	Timezone string `json:"timezone" gorm:"size:64"`
-	// Minimum severity reported by this task (defaults to medium)
+	// Minimum severity reported by this task (optional, no floor by default)
 	MinSeverity Severity `json:"min_severity"`
 	// Add discovered hosts to the asset inventory
 	AddToAssets bool `json:"add_to_assets"`
@@ -45,6 +47,16 @@ type Task struct {
 	RetentionKeepLast int `json:"retention_keep_last"`
 	// Severities that trigger a notification
 	NotifyOn StringList `json:"notify_on" enums:"info,low,medium,high,critical" gorm:"type:text;not null"`
+	// Skip port discovery before run (default false)
+	SkipDiscovery bool `json:"skip_discovery"`
+	// Also scan discovered non-web ports with network templates (default false)
+	ScanNetworkPorts bool `json:"scan_network_ports"`
+	// Protocols to use for network port scan (e.g. "tcp,javascript")
+	NetworkProtocols StringList `json:"network_protocols" gorm:"type:text;not null"`
+	// Last scheduled run time
+	LastRunAt *time.Time `json:"last_run_at"`
+	// Next scheduled run time
+	NextRunAt *time.Time `json:"next_run_at" gorm:"index"`
 	// Creation timestamp (read-only)
 	CreatedAt time.Time `json:"created_at"`
 	// Last update timestamp (read-only)
@@ -58,9 +70,6 @@ func (t *Task) ApplyDefaults() {
 	}
 	if t.Timezone == "" {
 		t.Timezone = "UTC"
-	}
-	if t.MinSeverity == "" {
-		t.MinSeverity = SeverityMedium
 	}
 	if t.RetentionKeepLast == 0 {
 		t.RetentionKeepLast = 20
@@ -85,14 +94,18 @@ func (t *Task) Validate() error {
 	default:
 		return invalid("schedule_type must be one of: once, cron")
 	}
-	if t.ScheduleType == ScheduleCron && t.CronExpr == "" {
-		return invalid("cron_expr is required for cron schedules")
-		// real cron parsing comes in the scheduler phase
+	if t.ScheduleType == ScheduleCron {
+		if t.CronExpr == "" {
+			return invalid("cron_expr is required for cron schedules")
+		}
+		if _, err := cron.Parse(t.CronExpr); err != nil {
+			return invalid("invalid cron_expr: %v", err)
+		}
 	}
 	if _, err := time.LoadLocation(t.Timezone); err != nil {
 		return invalid("invalid timezone %q", t.Timezone)
 	}
-	if !t.MinSeverity.Valid() {
+	if t.MinSeverity != "" && !t.MinSeverity.Valid() {
 		return invalid("invalid min_severity %q", t.MinSeverity)
 	}
 	for _, v := range t.NotifyOn {

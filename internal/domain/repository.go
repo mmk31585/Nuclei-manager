@@ -31,3 +31,8 @@ type TaskRepo interface {
 	Update(ctx context.Context, t *Task) error
 	Delete(ctx context.Context, id uint) error
 }
+
+type TargetEndpointRepo interface {
+	Upsert(ctx context.Context, endpoints []TargetEndpoint) error
+	ListByTarget(ctx context.Context, targetID uint) ([]TargetEndpoint, error)
+}

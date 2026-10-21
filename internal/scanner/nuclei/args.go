@@ -10,6 +10,10 @@ import (
 )
 
 // Options is the fully validated, already-resolved input for one nuclei run.
+//
+// Every optional field is only translated into a nuclei flag when it is set.
+// A zero value means "not configured" and leaves the nuclei default in place,
+// so a scan without any configuration behaves like `nuclei -list file -jsonl`.
 type Options struct {
 	TargetsFile   string   // absolute path
 	ExcludeHosts  []string // hosts, IPs or CIDRs
@@ -25,7 +29,10 @@ type Options struct {
 	TimeoutSec    int
 	Retries       int
 	MaxHostError  int
-	OAST          bool
+	// NoInteractsh disables interactsh callbacks. It is only passed when set:
+	// the service cannot serve the callbacks, so scans that do not opt in
+	// would otherwise stall on the public interactsh server.
+	NoInteractsh bool
 }
 
 var (
@@ -82,12 +89,15 @@ func BuildArgs(o Options) ([]string, error) {
 		{"max-host-error", o.MaxHostError, 1, 1000},
 	}
 	for _, n := range numbers {
+		if n.v == 0 {
+			continue // not configured: keep the nuclei default
+		}
 		if n.v < n.min || n.v > n.max {
 			return nil, fmt.Errorf("%s must be between %d and %d", n.name, n.min, n.max)
 		}
 		args = append(args, "-"+n.name, strconv.Itoa(n.v))
 	}
-	if !o.OAST {
+	if o.NoInteractsh {
 		args = append(args, "-no-interactsh")
 	}
 
@@ -105,7 +115,7 @@ func BuildArgs(o Options) ([]string, error) {
 		{"-tags", o.Tags, reTag.MatchString},
 		{"-exclude-tags", o.ExcludeTags, reTag.MatchString},
 		{"-severity", o.Severities, func(s string) bool { return allowedSeverity[s] }},
-		{"-type", o.Protocols, func(s string) bool { return allowedProtocol[s] }},
+		{"-pt", o.Protocols, func(s string) bool { return allowedProtocol[s] }},
 	}
 	for _, l := range lists {
 		if args, err = addList(args, l.flag, l.vals, l.ok); err != nil {

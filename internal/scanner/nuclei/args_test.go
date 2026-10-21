@@ -21,7 +21,7 @@ func TestBuildArgsValid(t *testing.T) {
 		TimeoutSec:    10,
 		Retries:       1,
 		MaxHostError:  30,
-		OAST:          false,
+		NoInteractsh:  true,
 	}
 	args, err := BuildArgs(o)
 	if err != nil {
@@ -35,7 +35,7 @@ func TestBuildArgsValid(t *testing.T) {
 		"-no-interactsh", "-exclude-hosts", "evil.invalid",
 		"-templates", "/opt/nuclei-templates", "-template-id", "cve-2021-0001",
 		"-tags", "cve,exposure", "-exclude-tags", "dos",
-		"-severity", "medium,high", "-type", "http,ssl"} {
+		"-severity", "medium,high", "-pt", "http,ssl"} {
 		if !containsFlag(args, want) {
 			t.Errorf("args missing %q; got %v", want, args)
 		}
@@ -59,7 +59,7 @@ func TestBuildArgsOASTOmitsNoInteractsh(t *testing.T) {
 	o := Options{
 		TargetsFile: "/tmp/targets.txt",
 		RateLimit:   50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
-		Retries: 1, MaxHostError: 30, OAST: true,
+		Retries: 1, MaxHostError: 30,
 	}
 	args, err := BuildArgs(o)
 	if err != nil {
@@ -67,7 +67,30 @@ func TestBuildArgsOASTOmitsNoInteractsh(t *testing.T) {
 	}
 	joined := strings.Join(args, " ")
 	if strings.Contains(joined, "-no-interactsh") {
-		t.Errorf("OAST=true should omit -no-interactsh; got %v", args)
+		t.Errorf("interactsh was not requested, -no-interactsh must not be passed; got %v", args)
+	}
+}
+
+// TestBuildArgsDefaultsAreMinimal checks that a scan without any configuration
+// is equivalent to a plain `nuclei -list targets.txt -jsonl`: no severity
+// filter, no rate limit and no interactsh flag.
+func TestBuildArgsDefaultsAreMinimal(t *testing.T) {
+	args, err := BuildArgs(Options{TargetsFile: "/tmp/targets.txt"})
+	if err != nil {
+		t.Fatalf("BuildArgs defaults = err %v", err)
+	}
+	joined := strings.Join(args, " ")
+	for _, f := range []string{"-severity", "-rate-limit", "-concurrency", "-bulk-size",
+		"-timeout", "-retries", "-max-host-error", "-no-interactsh", "-exclude-hosts",
+		"-pt", "-tags", "-templates", "-template-id", "-exclude-tags"} {
+		if strings.Contains(joined, f+" ") || strings.HasSuffix(joined, f) {
+			t.Errorf("unexpected flag %q present in args %v", f, args)
+		}
+	}
+	for _, want := range []string{"-list", "/tmp/targets.txt", "-jsonl"} {
+		if !containsFlag(args, want) {
+			t.Errorf("args missing %q; got %v", want, args)
+		}
 	}
 }
 
@@ -94,7 +117,7 @@ func TestBuildArgsRejects(t *testing.T) {
 			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
 		{"relative targets file", Options{TargetsFile: "relative.txt",
 			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
-		{"rate limit 0", Options{TargetsFile: "/tmp/targets.txt", RateLimit: 0,
+		{"rate limit too high", Options{TargetsFile: "/tmp/targets.txt", RateLimit: 20000,
 			Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
 		{"host starts with dash", Options{ExcludeHosts: []string{"-evil"}, TargetsFile: "/tmp/targets.txt",
 			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
@@ -117,7 +140,7 @@ func TestBuildArgsNoForbiddenFlags(t *testing.T) {
 		Protocols:     []string{"dns", "http", "tcp", "ssl", "websocket", "whois", "javascript", "workflow"},
 		ExcludeHosts:  []string{"evil.invalid", "10.0.0.0/8"},
 		RateLimit:     50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
-		Retries: 1, MaxHostError: 30, OAST: false,
+		Retries: 1, MaxHostError: 30, NoInteractsh: true,
 	}
 	args, err := BuildArgs(o)
 	if err != nil {
@@ -144,7 +167,7 @@ func TestBuildArgsNoListFlagsWhenEmpty(t *testing.T) {
 		t.Fatalf("BuildArgs = err %v", err)
 	}
 	joined := strings.Join(args, " ")
-	for _, f := range []string{"-tags", "-template-id", "-templates", "-type",
+	for _, f := range []string{"-tags", "-template-id", "-templates", "-pt",
 		"-exclude-tags", "-exclude-hosts", "-severity"} {
 		if strings.Contains(joined, f+" ") || strings.HasSuffix(joined, f) {
 			t.Errorf("unexpected flag %q present in args %v", f, args)

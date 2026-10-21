@@ -25,12 +25,6 @@ definitions:
       exclude_tags:
         description: Exclude templates carrying any of these tags
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       id:
@@ -52,12 +46,6 @@ definitions:
         description: Restrict to these protocols (http, dns, tcp, ssl, websocket,
           whois, javascript, workflow)
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       rate_limit:
@@ -69,34 +57,16 @@ definitions:
       severity:
         description: Only run templates of these severities
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       tags:
         description: Only run templates with at least one of these tags
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       template_ids:
         description: Restrict to these exact template IDs
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       timeout_sec:
@@ -159,6 +129,9 @@ definitions:
       results_total:
         description: Total findings reported
         type: integer
+      stage:
+        description: Stage of the run currently executing (see RunStage constants)
+        type: string
       started_at:
         description: Start time (null until claimed)
         type: string
@@ -259,34 +232,42 @@ definitions:
       created_at:
         description: Creation timestamp (read-only)
         type: string
+      custom_ports:
+        description: Custom ports when port_scope is custom (e.g. "80,443,8000-9000")
+        type: string
+      discovery_status:
+        description: 'Discovery status: pending, running, done, failed'
+        type: string
+      endpoints:
+        description: Discovered endpoints
+        items:
+          $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.TargetEndpoint'
+        type: array
       exclude:
         description: Hosts, IPs or CIDRs excluded from the scan
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       hosts:
         description: Hosts to scan (URLs, host:port, bare hosts or IPs); at least
           one required
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       id:
         description: Target identifier (read-only, assigned by the server)
         type: integer
+      last_discovery_at:
+        description: Last discovery timestamp
+        type: string
+      last_discovery_error:
+        description: Last discovery error message
+        type: string
       name:
         description: Unique target name (1-191 characters)
+        type: string
+      port_scope:
+        description: 'Port discovery scope: default, top100, top1000, all, custom'
         type: string
       probe_first:
         description: Probe hosts for reachability before scanning (defaults to true)
@@ -294,16 +275,35 @@ definitions:
       tags:
         description: Arbitrary labels for filtering and grouping
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       updated_at:
         description: Last update timestamp (read-only)
+        type: string
+    type: object
+  github_com_mmk31585_Nuclei-manager_internal_domain.TargetEndpoint:
+    properties:
+      first_seen_at:
+        type: string
+      host:
+        type: string
+      id:
+        type: integer
+      is_web:
+        type: boolean
+      last_seen_at:
+        type: string
+      port:
+        type: integer
+      scheme:
+        description: http, https, or empty
+        type: string
+      source:
+        description: naabu, httpx, manual
+        type: string
+      target_id:
+        type: integer
+      url:
         type: string
     type: object
   github_com_mmk31585_Nuclei-manager_internal_domain.Task:
@@ -329,22 +329,28 @@ definitions:
       id:
         description: Task identifier (read-only)
         type: integer
+      last_run_at:
+        description: Last scheduled run time
+        type: string
       min_severity:
         allOf:
         - $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Severity'
-        description: Minimum severity reported by this task (defaults to medium)
+        description: Minimum severity reported by this task (optional, no floor by
+          default)
       name:
         description: Unique task name (1-191 characters)
+        type: string
+      network_protocols:
+        description: Protocols to use for network port scan (e.g. "tcp,javascript")
+        items:
+          type: string
+        type: array
+      next_run_at:
+        description: Next scheduled run time
         type: string
       notify_on:
         description: Severities that trigger a notification
         items:
-          enum:
-          - info
-          - low
-          - medium
-          - high
-          - critical
           type: string
         type: array
       profile_id:
@@ -353,10 +359,17 @@ definitions:
       retention_keep_last:
         description: Number of most recent runs to retain (1-1000, defaults to 20)
         type: integer
+      scan_network_ports:
+        description: Also scan discovered non-web ports with network templates (default
+          false)
+        type: boolean
       schedule_type:
         allOf:
         - $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScheduleType'
         description: 'Schedule type: once or cron (defaults to once)'
+      skip_discovery:
+        description: Skip port discovery before run (default false)
+        type: boolean
       target_id:
         description: Identifier of the target to scan (must exist)
         type: integer
@@ -504,6 +517,11 @@ definitions:
         description: Optional comment
         example: Public staging estate
         type: string
+      custom_ports:
+        description: Custom ports (e.g. "80,443,8000-9000"), used only when port_scope
+          is custom
+        example: 80,443,8000-9000
+        type: string
       exclude:
         description: Hosts, IPs or CIDRs excluded from the scan
         example:
@@ -522,6 +540,11 @@ definitions:
       name:
         description: Unique target name
         example: staging-web
+        type: string
+      port_scope:
+        description: 'Port scope for discovery: default, top100, top1000, all, custom
+          (default all)'
+        example: all
         type: string
       probe_first:
         description: Probe hosts before scanning; defaults to true when omitted
@@ -556,12 +579,20 @@ definitions:
       min_severity:
         allOf:
         - $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.Severity'
-        description: Minimum severity reported
-        example: medium
+        description: Minimum severity reported (optional, no floor by default)
+        example: info
       name:
         description: Unique task name
         example: nightly-staging
         type: string
+      network_protocols:
+        description: Protocols to use for network port scan (e.g. "tcp,javascript")
+        example:
+        - tcp
+        - javascript
+        items:
+          type: string
+        type: array
       notify_on:
         description: Severities that trigger a notification
         example:
@@ -578,11 +609,18 @@ definitions:
         description: Number of most recent runs to retain (1-1000)
         example: 20
         type: integer
+      scan_network_ports:
+        description: Also scan discovered non-web ports with network templates (default
+          false)
+        type: boolean
       schedule_type:
         allOf:
         - $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.ScheduleType'
         description: 'Schedule type: once or cron'
         example: cron
+      skip_discovery:
+        description: Skip port discovery before run (default false)
+        type: boolean
       target_id:
         description: Target to scan (must exist)
         example: 1
@@ -865,12 +903,22 @@ paths:
   /runs/{id}/output:
     get:
       description: Downloads the raw Nuclei JSONL results for a run as application/x-ndjson.
+        The results of the web pass and of the optional network pass are merged; pass
+        "pass=web" or "pass=network" to download only one of them. Returns 204 if
+        the run produced no findings.
       parameters:
       - description: Run ID
         in: path
         name: id
         required: true
         type: integer
+      - description: Only return the given pass
+        enum:
+        - web
+        - network
+        in: query
+        name: pass
+        type: string
       produces:
       - application/x-ndjson
       responses:
@@ -878,6 +926,8 @@ paths:
           description: Newline-delimited JSON results
           schema:
             type: string
+        "204":
+          description: No findings produced
         "400":
           description: Bad Request
           schema:
@@ -887,6 +937,36 @@ paths:
           schema:
             $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Download raw run output
+      tags:
+      - runs
+  /runs/{id}/output.pdf:
+    get:
+      description: Generates and downloads a PDF report of the run's Nuclei findings
+        (web + network passes merged). Returns 204 if the run produced no findings.
+      parameters:
+      - description: Run ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/pdf
+      responses:
+        "200":
+          description: PDF report
+          schema:
+            type: string
+        "204":
+          description: No findings produced
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: No output yet
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Download run output as PDF
       tags:
       - runs
   /runs/{id}/stop:
@@ -1079,7 +1159,6 @@ paths:
           description: Target is used by one or more tasks
           schema:
             $ref: '#/definitions/internal_api.ErrorResponse'
-      summary: Delete a target
       tags:
       - targets
     get:
@@ -1145,6 +1224,59 @@ paths:
           schema:
             $ref: '#/definitions/internal_api.ErrorResponse'
       summary: Replace a target
+      tags:
+      - targets
+  /targets/{id}/discover:
+    post:
+      description: Triggers a new port/service discovery run in the background. Returns
+        202.
+      parameters:
+      - description: Target ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: Re-run discovery for a target
+      tags:
+      - targets
+  /targets/{id}/endpoints:
+    get:
+      description: Returns all discovered ports/services for a target.
+      parameters:
+      - description: Target ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_mmk31585_Nuclei-manager_internal_domain.TargetEndpoint'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      summary: List discovered endpoints for a target
       tags:
       - targets
   /tasks:

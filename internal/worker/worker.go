@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mmk31585/Nuclei-manager/internal/discovery"
 	"github.com/mmk31585/Nuclei-manager/internal/domain"
 	"github.com/mmk31585/Nuclei-manager/internal/scanner/nuclei"
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
@@ -26,12 +27,17 @@ var (
 )
 
 type Config struct {
-	DataDir              string
-	CustomTemplatesDir   string
+	DataDir            string
+	CustomTemplatesDir string
 	NucleiTemplatesDir string
-	MaxConcurrent        int
-	Poll                 time.Duration
-	Nuclei               nuclei.Info
+	MaxConcurrent      int
+	Poll               time.Duration
+	Nuclei             nuclei.Info
+	Discovery          discovery.Discoverer
+	DiscoveryOpts      discovery.Options
+	DiscoveryTimeout   time.Duration
+	TargetEndpoints    domain.TargetEndpointRepo
+	Targets            domain.TargetRepo
 }
 
 type Worker struct {
@@ -114,9 +120,13 @@ func (w *Worker) drain(ctx context.Context, sem chan struct{}) {
 }
 
 type prepared struct {
-	args    []string
-	exec    domain.RunExecution
-	timeout time.Duration
+	webArgs          []string
+	networkArgs      []string
+	networkTargets   string
+	scanNetworkPorts bool
+	timeout          time.Duration
+	exec             domain.RunExecution
+	files            targetFiles
 }
 
 func (w *Worker) execute(appCtx context.Context, run *domain.Run) {
@@ -147,23 +157,83 @@ func (w *Worker) execute(appCtx context.Context, run *domain.Run) {
 		log.Warn("could not store execution info", "err", err)
 	}
 	setCancel()
-	appendLog(prep.exec.LogPath, "starting: %s", prep.exec.CommandLine)
+	appendLog(prep.exec.LogPath, "targets.txt: %d lines (%d original, %d web URLs)",
+		len(prep.files.Web), prep.files.Original, len(prep.files.Web)-prep.files.Original)
+	appendLog(prep.exec.LogPath, "network_targets.txt: %d lines", len(prep.files.Network))
+
+	var allCounters nuclei.Counters
+	var finalStatus domain.RunStatus
+	var finalMsg string
+	var finalExit int
+
+	// First pass: web targets
+	w.setStage(run.ID, domain.RunStageWeb)
+	appendLog(prep.exec.LogPath, "nuclei web: starting: %s", prep.exec.CommandLine)
 
 	execCtx, cancelT := context.WithTimeoutCause(runCtx, prep.timeout, errTimedOut)
 	defer cancelT()
 	res, runErr := w.runner.Run(execCtx, nuclei.RunSpec{
-		Args:       prep.args,
+		Args:       prep.webArgs,
 		RawOutPath: prep.exec.RawOutputPath,
 		LogPath:    prep.exec.LogPath,
 		OnProgress: func(c nuclei.Counters) { w.progress(run.ID, c) },
 	})
 	cause := context.Cause(execCtx) // read BEFORE any cancel() of execCtx
 	status, msg := decideStatus(cause, runErr, res.ExitCode)
-	appendLog(prep.exec.LogPath, "finished: status=%s exit_code=%d %s", status, res.ExitCode, msg)
-	exit := res.ExitCode
-	log.Info("run finished", "status", status, "exit_code", exit, "results", res.Counters.Total)
+	appendLog(prep.exec.LogPath, "nuclei web: finished: status=%s exit_code=%d %s", status, res.ExitCode, msg)
+	allCounters = nuclei.Counters{
+		Total:       res.Counters.Total,
+		Critical:    res.Counters.Critical,
+		High:        res.Counters.High,
+		Medium:      res.Counters.Medium,
+		Low:         res.Counters.Low,
+		Info:        res.Counters.Info,
+		ParseErrors: res.Counters.ParseErrors,
+	}
+	finalStatus = status
+	finalMsg = msg
+	finalExit = res.ExitCode
+
+	// Second pass: network ports (if enabled and network targets exist)
+	if prep.scanNetworkPorts && len(prep.networkArgs) > 0 && len(prep.files.Network) > 0 {
+		networkLogPath := filepath.Join(filepath.Dir(prep.exec.LogPath), "network.log")
+		networkOutPath := filepath.Join(filepath.Dir(prep.exec.RawOutputPath), "network.jsonl")
+		networkCmdLine := strings.Join(append([]string{w.cfg.Nuclei.Path}, prep.networkArgs...), " ")
+
+		w.setStage(run.ID, domain.RunStageNetwork)
+		appendLog(prep.exec.LogPath, "nuclei network: starting: %s", networkCmdLine)
+
+		execCtx2, cancelT2 := context.WithTimeoutCause(runCtx, prep.timeout, errTimedOut)
+		defer cancelT2()
+		res2, runErr2 := w.runner.Run(execCtx2, nuclei.RunSpec{
+			Args:       prep.networkArgs,
+			RawOutPath: networkOutPath,
+			LogPath:    networkLogPath,
+			OnProgress: func(c nuclei.Counters) {
+				w.progress(run.ID, mergeCounters(allCounters, c))
+			},
+		})
+		cause2 := context.Cause(execCtx2)
+		status2, msg2 := decideStatus(cause2, runErr2, res2.ExitCode)
+		appendLog(prep.exec.LogPath, "nuclei network: finished: status=%s exit_code=%d %s", status2, res2.ExitCode, msg2)
+
+		// Merge findings
+		allCounters = mergeCounters(allCounters, res2.Counters)
+
+		// If network pass failed worse, use that status
+		if status2 == domain.RunFailed || status2 == domain.RunTimedOut {
+			if finalStatus == domain.RunCompleted {
+				finalStatus = status2
+				finalMsg = msg2
+				finalExit = res2.ExitCode
+			}
+		}
+	}
+	w.setStage(run.ID, domain.RunStageDone)
+
+	log.Info("run finished", "status", finalStatus, "exit_code", finalExit, "results", allCounters.Total)
 	w.finish(run.ID, domain.RunFinish{
-		Status: status, ExitCode: &exit, ErrorMessage: msg, Counters: toCounters(res.Counters),
+		Status: finalStatus, ExitCode: &finalExit, ErrorMessage: finalMsg, Counters: toCounters(allCounters),
 	})
 }
 
@@ -200,8 +270,28 @@ func (w *Worker) prepare(ctx context.Context, run *domain.Run) (*prepared, error
 		return nil, fmt.Errorf("create run dir: %w", err)
 	}
 	targetsPath := filepath.Join(dir, "targets.txt")
-	if err := os.WriteFile(targetsPath, []byte(strings.Join(snap.Target.Hosts, "\n")+"\n"), 0o600); err != nil {
+	networkTargetsPath := filepath.Join(dir, "network_targets.txt")
+
+	// Discovery: re-check ports before every run (unless skip_discovery is set)
+	var endpoints []domain.TargetEndpoint
+	if !snap.Task.SkipDiscovery && w.cfg.Discovery != nil {
+		endpoints = w.discoverEndpoints(ctx, snap, dir)
+	}
+
+	// Split the endpoints into the two nuclei input files. The scope allowlist
+	// is applied again here: it may have changed since the run was queued.
+	files := buildTargetFiles(snap.Target.Hosts, endpoints, func(host string) bool {
+		return w.scope.IsAllowed(ctx, host)
+	})
+	if len(files.Web) == 0 {
+		return nil, fmt.Errorf("no target left after applying the scope allowlist")
+	}
+
+	if err := os.WriteFile(targetsPath, []byte(strings.Join(files.Web, "\n")+"\n"), 0o600); err != nil {
 		return nil, fmt.Errorf("write targets file: %w", err)
+	}
+	if err := os.WriteFile(networkTargetsPath, []byte(strings.Join(files.Network, "\n")+"\n"), 0o600); err != nil {
+		return nil, fmt.Errorf("write network targets file: %w", err)
 	}
 
 	p := snap.Profile
@@ -224,33 +314,138 @@ func (w *Worker) prepare(ctx context.Context, run *domain.Run) (*prepared, error
 		// Use official Nuclei templates when no custom set is specified
 		paths = []string{w.cfg.NucleiTemplatesDir}
 	}
-	args, err := nuclei.BuildArgs(nuclei.Options{
+	webArgs, err := nuclei.BuildArgs(nuclei.Options{
 		TargetsFile: targetsPath, ExcludeHosts: exclude, TemplatePaths: paths,
 		TemplateIDs: p.TemplateIDs, Tags: p.Tags, ExcludeTags: p.ExcludeTags,
 		Severities: severities, Protocols: p.Protocols,
 		RateLimit: p.RateLimit, Concurrency: p.Concurrency, BulkSize: p.BulkSize,
 		TimeoutSec: p.TimeoutSec, Retries: p.Retries, MaxHostError: p.MaxHostError,
-		OAST: p.OAST,
+		NoInteractsh: !p.OAST,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build nuclei arguments: %w", err)
 	}
+
+	// The optional second pass scans the ports that are not web services with
+	// the network templates. It only runs when the task asks for it and there
+	// is at least one such port.
+	var networkArgs []string
+	if snap.Task.ScanNetworkPorts && len(files.Network) > 0 {
+		protocols := []string(snap.Task.NetworkProtocols)
+		if len(protocols) == 0 {
+			protocols = []string{"tcp", "javascript"}
+		}
+		networkArgs, err = nuclei.BuildArgs(nuclei.Options{
+			TargetsFile: networkTargetsPath, ExcludeHosts: exclude, TemplatePaths: paths,
+			TemplateIDs: p.TemplateIDs, Tags: p.Tags, ExcludeTags: p.ExcludeTags,
+			Severities: severities, Protocols: protocols,
+			RateLimit: p.RateLimit, Concurrency: p.Concurrency, BulkSize: p.BulkSize,
+			TimeoutSec: p.TimeoutSec, Retries: p.Retries, MaxHostError: p.MaxHostError,
+			NoInteractsh: !p.OAST,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("build nuclei network arguments: %w", err)
+		}
+	}
+
 	timeout := time.Duration(p.MaxDurationMin) * time.Minute
 	if timeout <= 0 {
 		timeout = 120 * time.Minute
 	}
 	return &prepared{
-		args:    args,
-		timeout: timeout,
+		webArgs:          webArgs,
+		networkArgs:      networkArgs,
+		networkTargets:   networkTargetsPath,
+		scanNetworkPorts: snap.Task.ScanNetworkPorts,
+		timeout:          timeout,
+		files:            files,
 		exec: domain.RunExecution{
-			CommandLine:      strings.Join(append([]string{w.cfg.Nuclei.Path}, args...), " "),
+			CommandLine:      strings.Join(append([]string{w.cfg.Nuclei.Path}, webArgs...), " "),
 			NucleiVersion:    w.cfg.Nuclei.Version,
 			TemplatesVersion: w.cfg.Nuclei.TemplatesVersion,
 			LogPath:          filepath.Join(dir, "run.log"),
 			RawOutputPath:    filepath.Join(dir, "output.jsonl"),
-			TargetsCount:     len(snap.Target.Hosts),
+			TargetsCount:     len(files.Web),
 		},
 	}, nil
+}
+
+// discoverEndpoints runs the port discovery for every host of the target and
+// returns the endpoints it found. The endpoints are stored so the next run
+// can fall back on them.
+func (w *Worker) discoverEndpoints(ctx context.Context, snap domain.ConfigSnapshot, dir string) []domain.TargetEndpoint {
+	appendLog(filepath.Join(dir, "run.log"), "discovery: starting")
+	slog.Info("discovery: starting", "target_id", snap.Target.ID)
+
+	// Use a timeout for discovery separate from the scan timeout. The deadline
+	// comes from the discovery timeout; DiscoveryOpts.TimeoutMs is naabu's
+	// per-connection timeout and must not be used as the overall deadline.
+	discoveryTimeout := w.cfg.DiscoveryTimeout
+	if discoveryTimeout <= 0 {
+		discoveryTimeout = 5 * time.Minute
+	}
+	discoveryCtx, cancelDiscovery := context.WithTimeout(ctx, discoveryTimeout)
+	defer cancelDiscovery()
+
+	hosts := snap.Target.Hosts
+	var allEndpoints []domain.TargetEndpoint
+
+	// Run discovery for each host
+	discoveryFailed := false
+	for _, host := range hosts {
+		opts := w.cfg.DiscoveryOpts
+		opts.PortScope = snap.Target.PortScope
+		opts.CustomPorts = snap.Target.CustomPorts
+		eps, err := w.cfg.Discovery.Discover(discoveryCtx, []string{host}, opts)
+		if err != nil {
+			slog.Warn("discovery: failed for host", "host", host, "err", err)
+			discoveryFailed = true
+			// Fall back to stored endpoints
+			stored, _ := w.cfg.TargetEndpoints.ListByTarget(ctx, snap.Target.ID)
+			allEndpoints = append(allEndpoints, stored...)
+			continue
+		}
+		// Upsert endpoints
+		var upsertEps []domain.TargetEndpoint
+		now := time.Now()
+		for _, ep := range eps {
+			upsertEps = append(upsertEps, domain.TargetEndpoint{
+				TargetID:    snap.Target.ID,
+				Host:        ep.Host,
+				Port:        ep.Port,
+				Scheme:      ep.Scheme,
+				URL:         ep.URL,
+				IsWeb:       ep.IsWeb,
+				Source:      ep.Source,
+				FirstSeenAt: now,
+				LastSeenAt:  now,
+			})
+		}
+		if err := w.cfg.TargetEndpoints.Upsert(ctx, upsertEps); err != nil {
+			slog.Warn("discovery: upsert failed", "err", err)
+		}
+		allEndpoints = append(allEndpoints, upsertEps...)
+	}
+
+	// If discovery failed for all hosts, fall back to stored endpoints
+	if discoveryFailed {
+		stored, _ := w.cfg.TargetEndpoints.ListByTarget(ctx, snap.Target.ID)
+		if len(stored) > 0 {
+			allEndpoints = stored
+		}
+	}
+
+	webCount := 0
+	for _, ep := range allEndpoints {
+		if ep.IsWeb {
+			webCount++
+		}
+	}
+	slog.Info("discovery: completed", "target_id", snap.Target.ID,
+		"hosts", len(hosts), "open_ports", len(allEndpoints), "web_endpoints", webCount)
+	appendLog(filepath.Join(dir, "run.log"), "discovery: %d hosts, %d open ports, %d web endpoints",
+		len(hosts), len(allEndpoints), webCount)
+	return allEndpoints
 }
 
 func normalizeExclude(in []string) ([]string, error) {
@@ -297,6 +492,28 @@ func resolveCustomSet(root, name string) (string, error) {
 func toCounters(c nuclei.Counters) domain.RunCounters {
 	return domain.RunCounters{Total: c.Total, Critical: c.Critical, High: c.High, Medium: c.Medium,
 		Low: c.Low, Info: c.Info, ParseErrors: c.ParseErrors}
+}
+
+// mergeCounters adds the counters of a second pass to the ones of the first.
+func mergeCounters(a, b nuclei.Counters) nuclei.Counters {
+	return nuclei.Counters{
+		Total:       a.Total + b.Total,
+		Critical:    a.Critical + b.Critical,
+		High:        a.High + b.High,
+		Medium:      a.Medium + b.Medium,
+		Low:         a.Low + b.Low,
+		Info:        a.Info + b.Info,
+		ParseErrors: a.ParseErrors + b.ParseErrors,
+	}
+}
+
+// setStage records the pass that is currently executing.
+func (w *Worker) setStage(id uint, stage string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := w.runs.SetStage(ctx, id, stage); err != nil {
+		slog.Warn("stage update failed", "run_id", id, "stage", stage, "err", err)
+	}
 }
 
 func (w *Worker) progress(id uint, c nuclei.Counters) {

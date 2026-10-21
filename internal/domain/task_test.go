@@ -14,8 +14,8 @@ func TestTaskApplyDefaults(t *testing.T) {
 	if tk.Timezone != "UTC" {
 		t.Errorf("Timezone = %q", tk.Timezone)
 	}
-	if tk.MinSeverity != SeverityMedium {
-		t.Errorf("MinSeverity = %q", tk.MinSeverity)
+	if tk.MinSeverity != "" {
+		t.Errorf("MinSeverity = %q, want no severity floor by default", tk.MinSeverity)
 	}
 	if tk.RetentionKeepLast != 20 {
 		t.Errorf("RetentionKeepLast = %d", tk.RetentionKeepLast)

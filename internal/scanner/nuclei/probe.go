@@ -20,7 +20,7 @@ var RequiredFlags = []string{
 	"list", "jsonl", "no-color", "disable-update-check", "stats", "stats-interval",
 	"rate-limit", "concurrency", "bulk-size", "timeout", "retries", "max-host-error",
 	"no-interactsh", "exclude-hosts", "templates", "template-id", "tags", "exclude-tags",
-	"severity", "type",
+	"severity", "pt",
 }
 
 var (

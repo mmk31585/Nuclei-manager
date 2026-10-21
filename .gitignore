@@ -3,3 +3,8 @@ bin/
 *.out
 data/
 ./nuclei-templates
+# Build artifacts
+scanner-manager-*.tar.gz
+
+# Agent metadata
+.kilo/

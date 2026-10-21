@@ -38,8 +38,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.SwaggerBasePath != "/api/v1" {
 		t.Errorf("SwaggerBasePath = %q", cfg.SwaggerBasePath)
 	}
-	if cfg.SwaggerHost != "localhost:8080" {
-		t.Errorf("SwaggerHost = %q, want localhost:8080", cfg.SwaggerHost)
+	if cfg.SwaggerHost != "" {
+		t.Errorf("SwaggerHost = %q, want empty (auto-detect from request)", cfg.SwaggerHost)
 	}
 	if !filepath.IsAbs(cfg.DataDir) {
 		t.Errorf("DataDir not absolute: %q", cfg.DataDir)

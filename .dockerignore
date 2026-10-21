@@ -1,0 +1,27 @@
+# Local build artifacts
+bin/
+scanner-manager
+scanner-manager-*.tar.gz
+*.out
+
+# VCS / editor / agent metadata
+.git/
+.gitignore
+.kilo/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets - never bake into an image layer
+.env
+.env.*
+!.env.example
+
+# Runtime data (scan output, run logs)
+data/
+
+# Not needed to compile the binary
+docs/*.md
+docker-compose*.yml
+README.md

@@ -114,6 +114,12 @@ func (r *RunRepo) SetExecution(ctx context.Context, id uint, e domain.RunExecuti
 		}).Error
 }
 
+func (r *RunRepo) SetStage(ctx context.Context, id uint, stage string) error {
+	return r.db.WithContext(ctx).Model(&domain.Run{}).
+		Where("id = ? AND status = ?", id, domain.RunRunning).
+		Update("stage", stage).Error
+}
+
 func (r *RunRepo) UpdateProgress(ctx context.Context, id uint, c domain.RunCounters) error {
 	return r.db.WithContext(ctx).Model(&domain.Run{}).
 		Where("id = ? AND status = ?", id, domain.RunRunning).

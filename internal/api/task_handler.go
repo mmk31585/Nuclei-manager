@@ -46,8 +46,8 @@ type taskRequest struct {
 	CronExpr string `json:"cron_expr" example:"0 2 * * *"`
 	// IANA timezone for the schedule
 	Timezone string `json:"timezone" example:"UTC"`
-	// Minimum severity reported
-	MinSeverity domain.Severity `json:"min_severity" example:"medium"`
+	// Minimum severity reported (optional, no floor by default)
+	MinSeverity domain.Severity `json:"min_severity" example:"info"`
 	// Add discovered hosts to the asset inventory
 	AddToAssets *bool `json:"add_to_assets"`
 	// Apply configured suppressions to findings
@@ -58,6 +58,12 @@ type taskRequest struct {
 	RetentionKeepLast int `json:"retention_keep_last" example:"20"`
 	// Severities that trigger a notification
 	NotifyOn []string `json:"notify_on" example:"high,critical"`
+	// Skip port discovery before run (default false)
+	SkipDiscovery *bool `json:"skip_discovery"`
+	// Also scan discovered non-web ports with network templates (default false)
+	ScanNetworkPorts *bool `json:"scan_network_ports"`
+	// Protocols to use for network port scan (e.g. "tcp,javascript")
+	NetworkProtocols []string `json:"network_protocols" example:"tcp,javascript"`
 }
 
 func (r taskRequest) apply(t *domain.Task) {
@@ -77,6 +83,15 @@ func (r taskRequest) apply(t *domain.Task) {
 	}
 	if r.Enabled != nil {
 		t.Enabled = *r.Enabled
+	}
+	if r.SkipDiscovery != nil {
+		t.SkipDiscovery = *r.SkipDiscovery
+	}
+	if r.ScanNetworkPorts != nil {
+		t.ScanNetworkPorts = *r.ScanNetworkPorts
+	}
+	if len(r.NetworkProtocols) > 0 {
+		t.NetworkProtocols = r.NetworkProtocols
 	}
 	t.RetentionKeepLast = r.RetentionKeepLast
 	t.NotifyOn = r.NotifyOn

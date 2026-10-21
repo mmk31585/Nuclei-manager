@@ -40,6 +40,10 @@ func TestEffectiveSeverities(t *testing.T) {
 		{[]string{"bogus"}, SeverityInfo, nil, true},
 		{[]string{"critical"}, SeverityInfo, []string{"critical"}, false},
 		{[]string{"info", "low"}, SeverityHigh, nil, true},
+		// No floor and no profile filter: no severity filter at all.
+		{[]string{}, "", []string{}, false},
+		{[]string{"critical"}, "", []string{"critical"}, false},
+		{[]string{"bogus"}, "", nil, true},
 	}
 	for _, tc := range cases {
 		got, err := EffectiveSeverities(tc.profile, tc.floor)

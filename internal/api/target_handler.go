@@ -6,17 +6,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/mmk31585/Nuclei-manager/internal/discovery"
 	"github.com/mmk31585/Nuclei-manager/internal/domain"
 	"github.com/mmk31585/Nuclei-manager/internal/scope"
 )
 
 type TargetHandler struct {
-	repo  domain.TargetRepo
-	scope *scope.Service
+	repo      domain.TargetRepo
+	scope     *scope.Service
+	discovery *discovery.Worker
+	endpoints domain.TargetEndpointRepo
 }
 
-func NewTargetHandler(repo domain.TargetRepo, sc *scope.Service) *TargetHandler {
-	return &TargetHandler{repo: repo, scope: sc}
+func NewTargetHandler(repo domain.TargetRepo, sc *scope.Service, dw *discovery.Worker, epRepo domain.TargetEndpointRepo) *TargetHandler {
+	return &TargetHandler{repo: repo, scope: sc, discovery: dw, endpoints: epRepo}
 }
 
 func (h *TargetHandler) Register(rg *gin.RouterGroup) {
@@ -26,6 +29,8 @@ func (h *TargetHandler) Register(rg *gin.RouterGroup) {
 	g.GET("/:id", h.Get)
 	g.PUT("/:id", h.Update)
 	g.DELETE("/:id", h.Delete)
+	g.GET("/:id/endpoints", h.ListEndpoints)
+	g.POST("/:id/discover", h.Discover)
 }
 
 // targetRequest is the request body for creating or replacing a target.
@@ -42,6 +47,10 @@ type targetRequest struct {
 	Tags []string `json:"tags" example:"prod"`
 	// Probe hosts before scanning; defaults to true when omitted
 	ProbeFirst *bool `json:"probe_first"`
+	// Port scope for discovery: default, top100, top1000, all, custom (default all)
+	PortScope string `json:"port_scope" example:"all"`
+	// Custom ports (e.g. "80,443,8000-9000"), used only when port_scope is custom
+	CustomPorts string `json:"custom_ports" example:"80,443,8000-9000"`
 }
 
 func (r targetRequest) apply(t *domain.Target) {
@@ -51,6 +60,13 @@ func (r targetRequest) apply(t *domain.Target) {
 	t.Exclude = r.Exclude
 	t.Tags = r.Tags
 	t.ProbeFirst = r.ProbeFirst == nil || *r.ProbeFirst
+	if r.PortScope != "" {
+		t.PortScope = r.PortScope
+	}
+	if r.CustomPorts != "" {
+		t.CustomPorts = r.CustomPorts
+	}
+	t.ApplyDefaults()
 }
 
 // prepare validates the target and enforces the scope allowlist on its hosts.
@@ -120,6 +136,7 @@ func (h *TargetHandler) Create(c *gin.Context) {
 	}
 	var t domain.Target
 	req.apply(&t)
+	t.DiscoveryStatus = "pending"
 	if err := h.prepare(c.Request.Context(), &t); err != nil {
 		writeError(c, err)
 		return
@@ -127,6 +144,10 @@ func (h *TargetHandler) Create(c *gin.Context) {
 	if err := h.repo.Create(c.Request.Context(), &t); err != nil {
 		writeError(c, err)
 		return
+	}
+	// Start background discovery
+	if h.discovery != nil {
+		go h.discovery.DiscoverTarget(context.Background(), t.ID)
 	}
 	c.JSON(http.StatusCreated, t)
 }
@@ -171,8 +192,53 @@ func (h *TargetHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, t)
 }
 
-// Delete godoc
-// @Summary      Delete a target
+// ListEndpoints godoc
+// @Summary      List discovered endpoints for a target
+// @Description  Returns all discovered ports/services for a target.
+// @Tags         targets
+// @Produce      json
+// @Param        id   path      int  true  "Target ID"
+// @Success      200  {array}   domain.TargetEndpoint
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /targets/{id}/endpoints [get]
+func (h *TargetHandler) ListEndpoints(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	eps, err := h.endpoints.ListByTarget(c.Request.Context(), id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, eps)
+}
+
+// Discover godoc
+// @Summary      Re-run discovery for a target
+// @Description  Triggers a new port/service discovery run in the background. Returns 202.
+// @Tags         targets
+// @Param        id   path      int  true  "Target ID"
+// @Success      202
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Router       /targets/{id}/discover [post]
+func (h *TargetHandler) Discover(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	if _, err := h.repo.Get(c.Request.Context(), id); err != nil {
+		writeError(c, err)
+		return
+	}
+	if h.discovery != nil {
+		go h.discovery.DiscoverTarget(context.Background(), id)
+	}
+	c.Status(http.StatusAccepted)
+}
+
 // @Description  Deletes a target by id. Returns 409 when one or more tasks reference it.
 // @Tags         targets
 // @Param        id   path      int  true  "Target ID"

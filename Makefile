@@ -3,7 +3,7 @@ export
 
 BIN := bin/scanner-manager
 
-.PHONY: run build test test-race vet fmt fmt-check tidy check db-up db-down smoke lab-up lab-down smoke-run
+.PHONY: run build test test-race vet fmt fmt-check tidy check db-up db-down smoke lab-up lab-down smoke-run swagger
 
 run:
 	go run ./cmd/scanner-manager
@@ -48,3 +48,8 @@ lab-down:
 
 smoke-run:
 	./scripts/smoke_run.sh
+
+swagger:
+	@SWAG=$$(command -v swag 2>/dev/null || echo /home/space/go/bin/swag); \
+	if [ ! -x "$$SWAG" ]; then echo "swag not installed; run: go install github.com/swaggo/swag/cmd/swag@latest"; exit 1; fi; \
+	$$SWAG init -g cmd/scanner-manager/main.go -o docs --parseDependency --parseInternal

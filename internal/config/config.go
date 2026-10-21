@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,39 +10,38 @@ import (
 )
 
 type Config struct {
-	HTTPAddr             string
-	DBDSN                string
-	GinMode              string
-	DataDir              string
-	NucleiBin            string
-	CustomTemplatesDir   string
-	NucleiTemplatesDir string
-	MaxConcurrentRuns    int
-	WorkerPoll           time.Duration
-	SwaggerHost          string
-	SwaggerBasePath      string
+	HTTPAddr               string
+	DBDSN                  string
+	GinMode                string
+	DataDir                string
+	NucleiBin              string
+	CustomTemplatesDir     string
+	NucleiTemplatesDir     string
+	MaxConcurrentRuns      int
+	WorkerPoll             time.Duration
+	SchedulerPoll          time.Duration
+	SwaggerHost            string
+	SwaggerBasePath        string
+	NaabuPath              string
+	HttpxPath              string
+	DiscoveryRate          int
+	DiscoveryTimeoutMs     int
+	DiscoveryMaxConcurrent int
+	DiscoveryTimeout       time.Duration
+	NaabuScanType          string
 }
 
 func Load() (Config, error) {
-	swaggerHostSet := os.Getenv("SM_SWAGGER_HOST") != ""
 	cfg := Config{
 		HTTPAddr:        getenv("SM_HTTP_ADDR", "127.0.0.1:8080"),
 		DBDSN:           os.Getenv("SM_DB_DSN"),
 		GinMode:         getenv("SM_GIN_MODE", "release"),
 		NucleiBin:       getenv("SM_NUCLEI_BIN", "nuclei"),
-		SwaggerHost:     getenv("SM_SWAGGER_HOST", "localhost"),
+		SwaggerHost:     os.Getenv("SM_SWAGGER_HOST"), // empty = auto-detect from request
 		SwaggerBasePath: getenv("SM_SWAGGER_BASE_PATH", "/api/v1"),
 	}
 	if cfg.DBDSN == "" {
 		return Config{}, errors.New("SM_DB_DSN is required")
-	}
-	// Default localhost to "localhost:<listen port>" so the Swagger UI builds
-	// working "Try it out" URLs. An explicit SM_SWAGGER_HOST is kept verbatim
-	// (including any host:port the operator wants, e.g. scan.example.com:443).
-	if !swaggerHostSet && (cfg.SwaggerHost == "localhost" || cfg.SwaggerHost == "127.0.0.1") {
-		if _, port, err := net.SplitHostPort(cfg.HTTPAddr); err == nil {
-			cfg.SwaggerHost = net.JoinHostPort(cfg.SwaggerHost, port)
-		}
 	}
 	var err error
 	if cfg.DataDir, err = filepath.Abs(getenv("SM_DATA_DIR", "./data")); err != nil {
@@ -70,6 +68,34 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("SM_WORKER_POLL must be a duration of at least 500ms")
 	}
 	cfg.WorkerPoll = d
+	schedPoll, err := time.ParseDuration(getenv("SM_SCHEDULER_POLL", "30s"))
+	if err != nil || schedPoll < 5*time.Second {
+		return Config{}, fmt.Errorf("SM_SCHEDULER_POLL must be a duration of at least 5s")
+	}
+	cfg.SchedulerPoll = schedPoll
+	cfg.NaabuPath = getenv("NAABU_PATH", "naabu")
+	cfg.HttpxPath = getenv("HTTPX_PATH", "httpx")
+	n, err = strconv.Atoi(getenv("DISCOVERY_RATE", "1000"))
+	if err != nil || n < 1 || n > 100000 {
+		return Config{}, errors.New("DISCOVERY_RATE must be an integer between 1 and 100000")
+	}
+	cfg.DiscoveryRate = n
+	n, err = strconv.Atoi(getenv("DISCOVERY_TIMEOUT_MS", "1000"))
+	if err != nil || n < 100 || n > 30000 {
+		return Config{}, errors.New("DISCOVERY_TIMEOUT_MS must be an integer between 100 and 30000")
+	}
+	cfg.DiscoveryTimeoutMs = n
+	n, err = strconv.Atoi(getenv("DISCOVERY_MAX_CONCURRENT", "2"))
+	if err != nil || n < 1 || n > 16 {
+		return Config{}, errors.New("DISCOVERY_MAX_CONCURRENT must be an integer between 1 and 16")
+	}
+	cfg.DiscoveryMaxConcurrent = n
+	d, err = time.ParseDuration(getenv("DISCOVERY_TIMEOUT", "30m"))
+	if err != nil {
+		return Config{}, fmt.Errorf("DISCOVERY_TIMEOUT must be a valid duration")
+	}
+	cfg.DiscoveryTimeout = d
+	cfg.NaabuScanType = getenv("NAABU_SCAN_TYPE", "c")
 	return cfg, nil
 }
 

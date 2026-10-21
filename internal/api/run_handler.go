@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -13,9 +14,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jung-kurt/gofpdf"
 
 	"github.com/mmk31585/Nuclei-manager/internal/domain"
 	"github.com/mmk31585/Nuclei-manager/internal/runs"
+	"github.com/mmk31585/Nuclei-manager/internal/scanner/nuclei"
 	"github.com/mmk31585/Nuclei-manager/internal/worker"
 )
 
@@ -38,6 +41,7 @@ func (h *RunHandler) Register(rg *gin.RouterGroup) {
 	g.POST("/:id/stop", h.Stop)
 	g.GET("/:id/log", h.Log)
 	g.GET("/:id/output", h.Output)
+	g.GET("/:id/output.pdf", h.OutputPDF)
 }
 
 // runFile builds the path from the numeric id only, never from a stored path.
@@ -232,11 +236,13 @@ func (h *RunHandler) Log(c *gin.Context) {
 
 // Output godoc
 // @Summary      Download raw run output
-// @Description  Downloads the raw Nuclei JSONL results for a run as application/x-ndjson.
+// @Description  Downloads the raw Nuclei JSONL results for a run as application/x-ndjson. The results of the web pass and of the optional network pass are merged; pass "pass=web" or "pass=network" to download only one of them. Returns 204 if the run produced no findings.
 // @Tags         runs
 // @Produce      application/x-ndjson
-// @Param        id   path      int  true  "Run ID"
+// @Param        id   path      int    true   "Run ID"
+// @Param        pass query     string false  "Only return the given pass"  Enums(web, network)
 // @Success      200  {string}  binary  "Newline-delimited JSON results"
+// @Success      204  "No findings produced"
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse  "No output yet"
 // @Router       /runs/{id}/output [get]
@@ -249,14 +255,226 @@ func (h *RunHandler) Output(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	p := h.runFile(id, "output.jsonl")
-	if _, err := os.Stat(p); err != nil {
+	pass := c.DefaultQuery("pass", "")
+	switch pass {
+	case "", "web", "network":
+	default:
+		writeError(c, fmt.Errorf("%w: invalid pass", domain.ErrValidation))
+		return
+	}
+
+	webPath := h.runFile(id, "output.jsonl")
+	networkPath := h.runFile(id, "network.jsonl")
+	paths := []string{webPath}
+	if pass != "web" {
+		paths = append(paths, networkPath)
+	}
+
+	// The passes keep their own file on disk, the download merges them.
+	var files []string
+	var size int64
+	var found bool
+	for _, p := range paths {
+		fi, err := os.Stat(p)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			writeError(c, err)
+			return
+		}
+		found = true
+		if fi.Size() == 0 {
+			continue
+		}
+		files = append(files, p)
+		size += fi.Size()
+	}
+	if !found {
 		writeError(c, fmt.Errorf("%w: no output yet", domain.ErrNotFound))
+		return
+	}
+	if size == 0 {
+		c.Status(http.StatusNoContent)
 		return
 	}
 	c.Header("Content-Type", "application/x-ndjson")
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="run-%d.jsonl"`, id))
-	c.File(p)
+	c.Status(http.StatusOK)
+	for _, p := range files {
+		f, err := os.Open(p)
+		if err != nil {
+			return
+		}
+		_, err = io.Copy(c.Writer, f)
+		f.Close()
+		if err != nil {
+			return
+		}
+	}
+}
+
+// OutputPDF godoc
+// @Summary      Download run output as PDF
+// @Description  Generates and downloads a PDF report of the run's Nuclei findings (web + network passes merged). Returns 204 if the run produced no findings.
+// @Tags         runs
+// @Produce      application/pdf
+// @Param        id   path      int    true   "Run ID"
+// @Success      200  {string}  binary  "PDF report"
+// @Success      204  "No findings produced"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse  "No output yet"
+// @Router       /runs/{id}/output.pdf [get]
+func (h *RunHandler) OutputPDF(c *gin.Context) {
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	if _, err := h.repo.Get(c.Request.Context(), id); err != nil {
+		writeError(c, err)
+		return
+	}
+
+	webPath := h.runFile(id, "output.jsonl")
+	networkPath := h.runFile(id, "network.jsonl")
+
+	var events []*nuclei.Event
+	for _, p := range []string{webPath, networkPath} {
+		f, err := os.Open(p)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			writeError(c, err)
+			return
+		}
+		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+		for scanner.Scan() {
+			line := bytes.TrimSpace(scanner.Bytes())
+			if len(line) == 0 {
+				continue
+			}
+			ev, err := nuclei.ParseLine(line)
+			if err != nil {
+				continue
+			}
+			events = append(events, ev)
+		}
+		f.Close()
+	}
+
+	if len(events) == 0 {
+		c.Status(http.StatusNoContent)
+		return
+	}
+
+	pdf := buildRunPDF(id, events)
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="run-%d.pdf"`, id))
+	c.Status(http.StatusOK)
+	if err := pdf.Output(c.Writer); err != nil {
+		return
+	}
+}
+
+var severityColors = map[string]struct{ r, g, b int }{
+	"critical": {r: 220, g: 20, b: 20},
+	"high":     {r: 200, g: 80, b: 0},
+	"medium":   {r: 220, g: 150, b: 0},
+	"low":      {r: 30, g: 140, b: 200},
+	"info":     {r: 100, g: 100, b: 100},
+}
+
+func buildRunPDF(id uint, events []*nuclei.Event) *gofpdf.Fpdf {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetMargins(15, 15, 15)
+
+	// Header
+	pdf.SetFont("Arial", "B", 16)
+	pdf.SetTextColor(30, 30, 30)
+	pdf.Cell(0, 10, fmt.Sprintf("Nuclei Scan Report - Run #%d", id))
+	pdf.Ln(6)
+	pdf.SetFont("Arial", "", 9)
+	pdf.SetTextColor(80, 80, 80)
+	pdf.Cell(0, 5, fmt.Sprintf("Generated from raw Nuclei JSONL results for run ID %d", id))
+	pdf.Ln(12)
+
+	// Summary counts
+	counts := map[string]int{}
+	for _, ev := range events {
+		counts[ev.Info.Severity]++
+	}
+	pdf.SetFont("Arial", "B", 12)
+	pdf.Cell(0, 8, "Summary")
+	pdf.Ln(7)
+	pdf.SetFont("Arial", "", 10)
+	severityOrder := []string{"critical", "high", "medium", "low", "info"}
+	for _, sev := range severityOrder {
+		if n := counts[sev]; n > 0 {
+			col := severityColors[sev]
+			pdf.SetTextColor(col.r, col.g, col.b)
+			pdf.Cell(0, 6, fmt.Sprintf("  %s: %d", strings.ToUpper(sev), n))
+			pdf.Ln(6)
+			pdf.SetTextColor(0, 0, 0)
+		}
+	}
+	pdf.Cell(0, 6, fmt.Sprintf("  Total findings: %d", len(events)))
+	pdf.Ln(14)
+
+	// Findings table header
+	pdf.SetFont("Arial", "B", 8)
+	pdf.SetFillColor(220, 220, 220)
+	pdf.CellFormat(15, 7, "Severity", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(30, 7, "Template ID", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(48, 7, "Template Name", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(38, 7, "Host", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(32, 7, "Matched At", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(30, 7, "Type", "1", 0, "C", true, 0, "")
+	pdf.Ln(7)
+
+	// Findings rows
+	pdf.SetFont("Arial", "", 7)
+	pageRows := 0
+	maxRowsPerPage := 45
+	for _, ev := range events {
+		if pageRows >= maxRowsPerPage {
+			pdf.AddPage()
+			// repeat table header
+			pdf.SetFont("Arial", "B", 8)
+			pdf.SetFillColor(220, 220, 220)
+			pdf.CellFormat(15, 7, "Severity", "1", 0, "C", true, 0, "")
+			pdf.CellFormat(30, 7, "Template ID", "1", 0, "C", true, 0, "")
+			pdf.CellFormat(48, 7, "Template Name", "1", 0, "C", true, 0, "")
+			pdf.CellFormat(38, 7, "Host", "1", 0, "C", true, 0, "")
+			pdf.CellFormat(32, 7, "Matched At", "1", 0, "C", true, 0, "")
+			pdf.CellFormat(30, 7, "Type", "1", 0, "C", true, 0, "")
+			pdf.Ln(7)
+			pdf.SetFont("Arial", "", 7)
+			pageRows = 0
+		}
+		col := severityColors[ev.Info.Severity]
+		pdf.SetTextColor(col.r, col.g, col.b)
+		pdf.CellFormat(15, 5, strings.ToUpper(ev.Info.Severity), "1", 0, "C", false, 0, "")
+		pdf.SetTextColor(0, 0, 0)
+		pdf.CellFormat(30, 5, truncate(ev.TemplateID, 28), "1", 0, "L", false, 0, "")
+		pdf.CellFormat(48, 5, truncate(ev.Info.Name, 42), "1", 0, "L", false, 0, "")
+		pdf.CellFormat(38, 5, truncate(ev.Host, 34), "1", 0, "L", false, 0, "")
+		pdf.CellFormat(32, 5, truncate(ev.MatchedAt, 30), "1", 0, "L", false, 0, "")
+		pdf.CellFormat(30, 5, truncate(ev.Type, 28), "1", 0, "L", false, 0, "")
+		pdf.Ln(5)
+		pageRows++
+	}
+
+	return pdf
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-3] + "..."
 }
 
 // readChunk reads up to limit bytes from offset, cutting at the last newline unless at EOF.

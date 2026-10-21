@@ -13,17 +13,18 @@ import (
 )
 
 type Store struct {
-	DB       *gorm.DB
-	Scope    *ScopeRepo
-	Targets  *TargetRepo
-	Profiles *ProfileRepo
-	Tasks    *TaskRepo
-	Runs     *RunRepo
+	DB              *gorm.DB
+	Scope           *ScopeRepo
+	Targets         *TargetRepo
+	Profiles        *ProfileRepo
+	Tasks           *TaskRepo
+	Runs            *RunRepo
+	TargetEndpoints *TargetEndpointRepo
 }
 
 func Open(dsn string) (*Store, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Error),
+		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
@@ -42,18 +43,19 @@ func Open(dsn string) (*Store, error) {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 	return &Store{
-		DB:       db,
-		Scope:    NewScopeRepo(db),
-		Targets:  NewTargetRepo(db),
-		Profiles: NewProfileRepo(db),
-		Tasks:    NewTaskRepo(db),
-		Runs:     NewRunRepo(db),
+		DB:              db,
+		Scope:           NewScopeRepo(db),
+		Targets:         NewTargetRepo(db),
+		Profiles:        NewProfileRepo(db),
+		Tasks:           NewTaskRepo(db),
+		Runs:            NewRunRepo(db),
+		TargetEndpoints: NewTargetEndpointRepo(db),
 	}, nil
 }
 
 func (s *Store) Migrate() error {
 	return s.DB.AutoMigrate(
-		&domain.ScopeEntry{}, &domain.Target{}, &domain.Profile{}, &domain.Task{},
+		&domain.ScopeEntry{}, &domain.Target{}, &domain.TargetEndpoint{}, &domain.Profile{}, &domain.Task{},
 		&domain.Run{}, &domain.Finding{}, &domain.RunFinding{},
 		&domain.CustomTemplate{}, &domain.Suppression{},
 	)

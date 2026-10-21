@@ -29,3 +29,17 @@ func (s *Service) CheckAll(ctx context.Context, inputs []string) error {
 	}
 	return nil
 }
+
+// IsAllowed checks if a single host (bare hostname/IP) is allowed by the current scope.
+// Returns true if allowed, false if not allowed or on error.
+func (s *Service) IsAllowed(ctx context.Context, host string) bool {
+	entries, err := s.repo.List(ctx)
+	if err != nil {
+		return false
+	}
+	m, err := NewMatcher(entries)
+	if err != nil {
+		return false
+	}
+	return m.CheckTarget(host) == nil
+}
