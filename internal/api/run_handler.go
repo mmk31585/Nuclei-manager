@@ -236,12 +236,14 @@ func (h *RunHandler) Log(c *gin.Context) {
 
 // Output godoc
 // @Summary      Download raw run output
-// @Description  Downloads the raw Nuclei JSONL results for a run as application/x-ndjson. The results of the web pass and of the optional network pass are merged; pass "pass=web" or "pass=network" to download only one of them. Returns 204 if the run produced no findings.
+// @Description  Downloads the raw Nuclei JSONL results for a run as application/x-ndjson. Use ?format=pdf to get a PDF report instead. The results of the web pass and of the optional network pass are merged; pass "pass=web" or "pass=network" to download only one of them. Returns 204 if the run produced no findings.
 // @Tags         runs
 // @Produce      application/x-ndjson
-// @Param        id   path      int    true   "Run ID"
-// @Param        pass query     string false  "Only return the given pass"  Enums(web, network)
-// @Success      200  {string}  binary  "Newline-delimited JSON results"
+// @Produce      application/pdf
+// @Param        id     path      string  true  "Run ID"
+// @Param        pass   query     string  false "Only return the given pass"  Enums(web, network)
+// @Param        format query     string  false "Output format"                 Enums(json, pdf)
+// @Success      200  {string}  binary  "Newline-delimited JSON results or PDF report"
 // @Success      204  "No findings produced"
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse  "No output yet"
@@ -255,6 +257,19 @@ func (h *RunHandler) Output(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
+	format := c.DefaultQuery("format", "json")
+	switch format {
+	case "json", "pdf":
+	default:
+		writeError(c, fmt.Errorf("%w: invalid format", domain.ErrValidation))
+		return
+	}
+
+	if format == "pdf" {
+		h.OutputPDF(c)
+		return
+	}
+
 	pass := c.DefaultQuery("pass", "")
 	switch pass {
 	case "", "web", "network":
