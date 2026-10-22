@@ -4,6 +4,14 @@ consumes:
 definitions:
   github_com_mmk31585_Nuclei-manager_internal_domain.Profile:
     properties:
+      authors:
+        description: Only run templates by these authors
+        items:
+          type: string
+        type: array
+      basic_auth:
+        description: Basic auth username:password for authenticated scans
+        type: string
       builtin:
         description: True for seeded built-in profiles (read-only, defaults to false)
         type: boolean
@@ -13,35 +21,164 @@ definitions:
       concurrency:
         description: Concurrent requests (1-500, defaults to 25)
         type: integer
+      cookies:
+        description: Cookies sent with every request
+        items:
+          type: string
+        type: array
       created_at:
         description: Creation timestamp (read-only)
         type: string
+      custom_headers:
+        description: Custom headers passed with every request
+        items:
+          type: string
+        type: array
       custom_set:
         description: Name of an external custom template set directory
         type: string
       description:
         description: Optional free-text description
         type: string
+      exclude_protocols:
+        description: Exclude these protocol types
+        items:
+          type: string
+        type: array
+      exclude_severity:
+        description: Exclude templates of these severities
+        items:
+          type: string
+        type: array
       exclude_tags:
         description: Exclude templates carrying any of these tags
+        items:
+          type: string
+        type: array
+      exclude_template_ids:
+        description: Exclude these exact template IDs
+        items:
+          type: string
+        type: array
+      exclude_templates:
+        description: ExcludeTemplates path to template file or directory to exclude.
+        items:
+          type: string
+        type: array
+      follow_redirects:
+        description: Follow HTTP redirects for HTTP templates
+        type: boolean
+      headless:
+        description: Headless
+        type: boolean
+      headless_bulk_size:
+        type: integer
+      headless_concurrency:
+        type: integer
+      headless_options:
         items:
           type: string
         type: array
       id:
         description: Profile identifier (read-only)
         type: integer
+      include_tags:
+        description: Include tags even if excluded by default/configuration
+        items:
+          type: string
+        type: array
+      include_templates:
+        description: |-
+          Template filters
+          IncludeTemplates path to template file or directory to be executed even if excluded.
+        items:
+          type: string
+        type: array
+      input_mode:
+        description: 'Input format: "list" (default), "burp", "jsonl", "yaml", "openapi",
+          "swagger"'
+        type: string
+      interactions_cache_size:
+        type: integer
+      interactions_cooldown_period:
+        type: integer
+      interactions_eviction:
+        type: integer
+      interactions_poll_duration:
+        type: integer
+      interactsh_server:
+        description: Interactsh/OAST
+        type: string
+      interactsh_token:
+        type: string
+      ip_version:
+        description: IPVersion to scan (4, 6).
+        items:
+          type: string
+        type: array
+      js_concurrency:
+        type: integer
+      json_export:
+        description: JSONExport file to export results in JSON format.
+        type: string
+      jsonl_export:
+        description: JSONLExport file to export results in JSONL format.
+        type: string
+      leave_default_ports:
+        type: boolean
+      list_headless_actions:
+        type: boolean
+      markdown_export:
+        description: MarkdownExport directory to export results in markdown format.
+        type: string
+      matcher_status:
+        description: MatcherStatus displays match failure status.
+        type: boolean
       max_duration_min:
         description: Max total scan duration in minutes (1-1440, defaults to 120)
         type: integer
       max_host_error:
         description: Max errors per host before skipping it (1-1000, defaults to 30)
         type: integer
+      max_redirects:
+        description: Max number of redirects to follow (default 10)
+        type: integer
       name:
         description: Unique profile name (1-191 characters)
         type: string
+      no_httpx:
+        description: Disable httpx probing for non-URL input
+        type: boolean
+      no_meta:
+        description: NoMeta disables printing result metadata in CLI output.
+        type: boolean
+      no_mhe:
+        type: boolean
       oast:
         description: Enable OAST interaction callbacks
         type: boolean
+      omit_raw:
+        description: OmitRaw omits request/response pairs in JSON/JSONL/Markdown outputs.
+        type: boolean
+      omit_template:
+        description: OmitTemplate omits encoded template in JSON/JSONL output.
+        type: boolean
+      output_format:
+        description: 'Output format: jsonl (default), json, sarif'
+        type: string
+      page_timeout:
+        type: integer
+      payload_concurrency:
+        type: integer
+      prefetch_secrets:
+        description: PrefetchSecrets prefetches secrets from the secrets file.
+        type: boolean
+      probe_concurrency:
+        type: integer
+      project:
+        type: boolean
+      project_path:
+        type: string
       protocols:
         description: Restrict to these protocols (http, dns, tcp, ssl, websocket,
           whois, javascript, workflow)
@@ -51,19 +188,89 @@ definitions:
       rate_limit:
         description: Requests per second (1-10000, defaults to 50)
         type: integer
+      rate_limit_duration:
+        type: string
+      rate_limit_minute:
+        description: Rate Limiting / Performance
+        type: integer
+      redact:
+        description: Redact redact given list of keys from query parameter, request
+          header and body.
+        items:
+          type: string
+        type: array
+      report_config:
+        description: ReportConfig nuclei reporting module configuration file.
+        type: string
+      report_db:
+        description: ReportDB nuclei reporting database.
+        type: string
+      required_only:
+        description: RequiredOnly uses only required fields in input format when generating
+          requests.
+        type: boolean
+      response_size_read:
+        type: integer
+      response_size_save:
+        type: integer
       retries:
         description: Retries per request (0-10, defaults to 1)
         type: integer
+      sarif_export:
+        description: SarifExport file to export results in SARIF format.
+        type: string
+      scan_all_ips:
+        description: ScanAllIPs scans all IPs associated with DNS record.
+        type: boolean
+      scan_strategy:
+        description: |-
+          Scan Strategy
+          ScanStrategy: "auto", "template-spray", "host-spray"
+        type: string
+      secret_file:
+        description: |-
+          Authentication
+          SecretFile path to config file containing secrets for authenticated scans.
+        items:
+          type: string
+        type: array
       severity:
         description: Only run templates of these severities
         items:
           type: string
         type: array
+      show_browser:
+        type: boolean
+      skip_format_validation:
+        description: SkipFormatValidation skips format validation (like missing vars)
+          when parsing input file.
+        type: boolean
+      stop_at_first_match:
+        description: Stop processing HTTP requests after the first match
+        type: boolean
+      store_response:
+        description: StoreResponse stores all request/response passed through nuclei
+          to output directory.
+        type: boolean
+      store_response_dir:
+        description: StoreResponseDir custom directory to store responses (default
+          "output").
+        type: string
+      stream:
+        type: boolean
+      system_chrome:
+        type: boolean
+      system_resolvers:
+        description: Use system DNS resolving as error fallback
+        type: boolean
       tags:
         description: Only run templates with at least one of these tags
         items:
           type: string
         type: array
+      template_condition:
+        description: Complex expression to filter templates
+        type: string
       template_ids:
         description: Restrict to these exact template IDs
         items:
@@ -72,9 +279,28 @@ definitions:
       timeout_sec:
         description: Per-request timeout in seconds (1-300, defaults to 10)
         type: integer
+      timestamp:
+        description: Timestamp enables printing timestamp in CLI output.
+        type: boolean
+      track_error:
+        items:
+          type: string
+        type: array
       updated_at:
         description: Last update timestamp (read-only)
         type: string
+      workflow_urls:
+        description: WorkflowURLs list of workflow URLs to run.
+        items:
+          type: string
+        type: array
+      workflows:
+        description: |-
+          Workflows
+          Workflows list of workflow or workflow directory to run.
+        items:
+          type: string
+        type: array
     type: object
   github_com_mmk31585_Nuclei-manager_internal_domain.Run:
     properties:
@@ -409,6 +635,17 @@ definitions:
     type: object
   internal_api.profileRequest:
     properties:
+      authors:
+        description: Only run templates by these authors
+        example:
+        - geeknik
+        items:
+          type: string
+        type: array
+      basic_auth:
+        description: Basic auth username:password for authenticated scans
+        example: user:pass
+        type: string
       bulk_size:
         description: Bulk size (1-500)
         example: 25
@@ -417,6 +654,20 @@ definitions:
         description: Concurrent requests (1-500)
         example: 25
         type: integer
+      cookies:
+        description: Cookies sent with every request
+        example:
+        - session=abc123
+        items:
+          type: string
+        type: array
+      custom_headers:
+        description: Custom headers passed with every request (header:value)
+        example:
+        - 'Authorization: Bearer xxx'
+        items:
+          type: string
+        type: array
       custom_set:
         description: Name of an external custom template set directory
         example: custom-a
@@ -425,6 +676,20 @@ definitions:
         description: Optional description
         example: External-facing web checks
         type: string
+      exclude_protocols:
+        description: Exclude these protocol types
+        example:
+        - dns
+        items:
+          type: string
+        type: array
+      exclude_severity:
+        description: Exclude templates of these severities
+        example:
+        - info
+        items:
+          type: string
+        type: array
       exclude_tags:
         description: Exclude templates carrying any of these tags
         example:
@@ -433,6 +698,109 @@ definitions:
         items:
           type: string
         type: array
+      exclude_template_ids:
+        description: Exclude these exact template IDs
+        example:
+        - cve-2020-9999
+        items:
+          type: string
+        type: array
+      exclude_templates:
+        description: ExcludeTemplates path to template file or directory to exclude
+        example:
+        - excluded/
+        items:
+          type: string
+        type: array
+      follow_redirects:
+        description: Follow HTTP redirects for HTTP templates
+        type: boolean
+      headless:
+        description: Headless
+        type: boolean
+      headless_bulk_size:
+        example: 10
+        type: integer
+      headless_concurrency:
+        example: 10
+        type: integer
+      headless_options:
+        example:
+        - --no-sandbox
+        items:
+          type: string
+        type: array
+      include_tags:
+        description: Include tags even if excluded by default or configuration
+        example:
+        - dos
+        items:
+          type: string
+        type: array
+      include_templates:
+        description: |-
+          Template filters
+          IncludeTemplates path to template file or directory to be executed even if excluded
+        example:
+        - custom/
+        items:
+          type: string
+        type: array
+      input_mode:
+        description: |-
+          --- Input Formats ---
+          Input mode: list (default), burp, jsonl, yaml, openapi, swagger
+        example: list
+        type: string
+      interactions_cache_size:
+        example: 5000
+        type: integer
+      interactions_cooldown_period:
+        example: 5
+        type: integer
+      interactions_eviction:
+        example: 60
+        type: integer
+      interactions_poll_duration:
+        example: 5
+        type: integer
+      interactsh_server:
+        description: Interactsh/OAST
+        example: oast.pro
+        type: string
+      interactsh_token:
+        example: xxx
+        type: string
+      ip_version:
+        description: IPVersion to scan (4, 6)
+        example:
+        - "4"
+        - "6"
+        items:
+          type: string
+        type: array
+      js_concurrency:
+        example: 120
+        type: integer
+      json_export:
+        description: JSONExport file to export results in JSON format
+        example: results.json
+        type: string
+      jsonl_export:
+        description: JSONLExport file to export results in JSONL format
+        example: results.jsonl
+        type: string
+      leave_default_ports:
+        type: boolean
+      list_headless_actions:
+        type: boolean
+      markdown_export:
+        description: MarkdownExport directory to export results in markdown format
+        example: report/
+        type: string
+      matcher_status:
+        description: MatcherStatus displays match failure status
+        type: boolean
       max_duration_min:
         description: Max total scan duration in minutes (1-1440)
         example: 120
@@ -441,13 +809,52 @@ definitions:
         description: Max errors per host before skipping it (1-1000)
         example: 30
         type: integer
+      max_redirects:
+        description: Max number of redirects to follow (default 10)
+        example: 10
+        type: integer
       name:
         description: Unique profile name
         example: external-only
         type: string
+      no_httpx:
+        description: Disable httpx probing for non-URL input
+        type: boolean
+      no_meta:
+        description: NoMeta disables printing result metadata in CLI output
+        type: boolean
+      no_mhe:
+        type: boolean
       oast:
         description: Enable OAST interaction callbacks
         type: boolean
+      omit_raw:
+        description: OmitRaw omits request/response pairs in JSON/JSONL/Markdown outputs
+        type: boolean
+      omit_template:
+        description: OmitTemplate omits encoded template in JSON/JSONL output
+        type: boolean
+      output_format:
+        description: 'Output format: jsonl (default), json, sarif'
+        example: jsonl
+        type: string
+      page_timeout:
+        example: 20
+        type: integer
+      payload_concurrency:
+        example: 25
+        type: integer
+      prefetch_secrets:
+        description: PrefetchSecrets prefetches secrets from the secrets file
+        type: boolean
+      probe_concurrency:
+        example: 50
+        type: integer
+      project:
+        type: boolean
+      project_path:
+        example: /tmp/nuclei-project
+        type: string
       protocols:
         description: Restrict to these protocols (http, dns, tcp, ssl, websocket,
           whois, javascript, workflow)
@@ -461,10 +868,65 @@ definitions:
         description: Requests per second (1-10000)
         example: 50
         type: integer
+      rate_limit_duration:
+        example: 1m
+        type: string
+      rate_limit_minute:
+        description: Rate Limiting / Performance
+        example: 3000
+        type: integer
+      redact:
+        description: Redact redact given list of keys from query parameter, request
+          header and body
+        example:
+        - password
+        - token
+        items:
+          type: string
+        type: array
+      report_config:
+        description: ReportConfig nuclei reporting module configuration file
+        example: report.yaml
+        type: string
+      report_db:
+        description: ReportDB nuclei reporting database
+        example: report.db
+        type: string
+      required_only:
+        description: RequiredOnly uses only required fields in input format
+        type: boolean
+      response_size_read:
+        example: 4194304
+        type: integer
+      response_size_save:
+        example: 1048576
+        type: integer
       retries:
         description: Retries per request (0-10)
         example: 1
         type: integer
+      sarif_export:
+        description: SarifExport file to export results in SARIF format
+        example: results.sarif
+        type: string
+      scan_all_ips:
+        description: ScanAllIPs scans all IPs associated with DNS record
+        type: boolean
+      scan_strategy:
+        description: |-
+          Scan Strategy
+          ScanStrategy: auto, template-spray, host-spray
+        example: auto
+        type: string
+      secret_file:
+        description: |-
+          Authentication
+          SecretFile path to config file containing secrets
+        example:
+        - /path/to/secrets.yaml
+        items:
+          type: string
+        type: array
       severity:
         description: Only run templates of these severities
         example:
@@ -474,6 +936,31 @@ definitions:
         items:
           type: string
         type: array
+      show_browser:
+        type: boolean
+      skip_format_validation:
+        description: SkipFormatValidation skips format validation
+        type: boolean
+      stop_at_first_match:
+        description: Stop processing HTTP requests after the first match
+        type: boolean
+      store_response:
+        description: |-
+          Output enhancements
+          StoreResponse stores all request/response passed through nuclei to output directory
+        type: boolean
+      store_response_dir:
+        description: StoreResponseDir custom directory to store responses (default
+          "output")
+        example: output
+        type: string
+      stream:
+        type: boolean
+      system_chrome:
+        type: boolean
+      system_resolvers:
+        description: Use system DNS resolving as error fallback
+        type: boolean
       tags:
         description: Only run templates with at least one of these tags
         example:
@@ -482,6 +969,10 @@ definitions:
         items:
           type: string
         type: array
+      template_condition:
+        description: Complex expression to filter templates
+        example: contains(id,'xss')
+        type: string
       template_ids:
         description: Restrict to these exact template IDs
         example:
@@ -493,6 +984,31 @@ definitions:
         description: Per-request timeout in seconds (1-300)
         example: 10
         type: integer
+      timestamp:
+        description: Timestamp enables printing timestamp in CLI output
+        type: boolean
+      track_error:
+        example:
+        - standard
+        items:
+          type: string
+        type: array
+      workflow_urls:
+        description: WorkflowURLs list of workflow URLs to run
+        example:
+        - https://example.com/workflow.yaml
+        items:
+          type: string
+        type: array
+      workflows:
+        description: |-
+          Workflows
+          Workflows list of workflow or workflow directory to run
+        example:
+        - workflows/
+        items:
+          type: string
+        type: array
     type: object
   internal_api.scopeRequest:
     properties:
@@ -903,15 +1419,15 @@ paths:
   /runs/{id}/output:
     get:
       description: Downloads the raw Nuclei JSONL results for a run as application/x-ndjson.
-        The results of the web pass and of the optional network pass are merged; pass
-        "pass=web" or "pass=network" to download only one of them. Returns 204 if
-        the run produced no findings.
+        Use ?format=pdf to get a PDF report instead. The results of the web pass and
+        of the optional network pass are merged; pass "pass=web" or "pass=network"
+        to download only one of them. Returns 204 if the run produced no findings.
       parameters:
       - description: Run ID
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: Only return the given pass
         enum:
         - web
@@ -919,11 +1435,19 @@ paths:
         in: query
         name: pass
         type: string
+      - description: Output format
+        enum:
+        - json
+        - pdf
+        in: query
+        name: format
+        type: string
       produces:
       - application/x-ndjson
+      - application/pdf
       responses:
         "200":
-          description: Newline-delimited JSON results
+          description: Newline-delimited JSON results or PDF report
           schema:
             type: string
         "204":

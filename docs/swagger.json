@@ -397,9 +397,10 @@
         },
         "/runs/{id}/output": {
             "get": {
-                "description": "Downloads the raw Nuclei JSONL results for a run as application/x-ndjson. The results of the web pass and of the optional network pass are merged; pass \"pass=web\" or \"pass=network\" to download only one of them. Returns 204 if the run produced no findings.",
+                "description": "Downloads the raw Nuclei JSONL results for a run as application/x-ndjson. Use ?format=pdf to get a PDF report instead. The results of the web pass and of the optional network pass are merged; pass \"pass=web\" or \"pass=network\" to download only one of them. Returns 204 if the run produced no findings.",
                 "produces": [
-                    "application/x-ndjson"
+                    "application/x-ndjson",
+                    "application/pdf"
                 ],
                 "tags": [
                     "runs"
@@ -407,7 +408,7 @@
                 "summary": "Download raw run output",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Run ID",
                         "name": "id",
                         "in": "path",
@@ -422,11 +423,21 @@
                         "description": "Only return the given pass",
                         "name": "pass",
                         "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "json",
+                            "pdf"
+                        ],
+                        "type": "string",
+                        "description": "Output format",
+                        "name": "format",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Newline-delimited JSON results",
+                        "description": "Newline-delimited JSON results or PDF report",
                         "schema": {
                             "type": "string"
                         }
@@ -1209,6 +1220,17 @@
         "github_com_mmk31585_Nuclei-manager_internal_domain.Profile": {
             "type": "object",
             "properties": {
+                "authors": {
+                    "description": "Only run templates by these authors",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "basic_auth": {
+                    "description": "Basic auth username:password for authenticated scans",
+                    "type": "string"
+                },
                 "builtin": {
                     "description": "True for seeded built-in profiles (read-only, defaults to false)",
                     "type": "boolean"
@@ -1221,9 +1243,23 @@
                     "description": "Concurrent requests (1-500, defaults to 25)",
                     "type": "integer"
                 },
+                "cookies": {
+                    "description": "Cookies sent with every request",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "created_at": {
                     "description": "Creation timestamp (read-only)",
                     "type": "string"
+                },
+                "custom_headers": {
+                    "description": "Custom headers passed with every request",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "custom_set": {
                     "description": "Name of an external custom template set directory",
@@ -1233,8 +1269,56 @@
                     "description": "Optional free-text description",
                     "type": "string"
                 },
+                "exclude_protocols": {
+                    "description": "Exclude these protocol types",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "exclude_severity": {
+                    "description": "Exclude templates of these severities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "exclude_tags": {
                     "description": "Exclude templates carrying any of these tags",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "exclude_template_ids": {
+                    "description": "Exclude these exact template IDs",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "exclude_templates": {
+                    "description": "ExcludeTemplates path to template file or directory to exclude.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "follow_redirects": {
+                    "description": "Follow HTTP redirects for HTTP templates",
+                    "type": "boolean"
+                },
+                "headless": {
+                    "description": "Headless",
+                    "type": "boolean"
+                },
+                "headless_bulk_size": {
+                    "type": "integer"
+                },
+                "headless_concurrency": {
+                    "type": "integer"
+                },
+                "headless_options": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1244,6 +1328,75 @@
                     "description": "Profile identifier (read-only)",
                     "type": "integer"
                 },
+                "include_tags": {
+                    "description": "Include tags even if excluded by default/configuration",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "include_templates": {
+                    "description": "Template filters\nIncludeTemplates path to template file or directory to be executed even if excluded.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "input_mode": {
+                    "description": "Input format: \"list\" (default), \"burp\", \"jsonl\", \"yaml\", \"openapi\", \"swagger\"",
+                    "type": "string"
+                },
+                "interactions_cache_size": {
+                    "type": "integer"
+                },
+                "interactions_cooldown_period": {
+                    "type": "integer"
+                },
+                "interactions_eviction": {
+                    "type": "integer"
+                },
+                "interactions_poll_duration": {
+                    "type": "integer"
+                },
+                "interactsh_server": {
+                    "description": "Interactsh/OAST",
+                    "type": "string"
+                },
+                "interactsh_token": {
+                    "type": "string"
+                },
+                "ip_version": {
+                    "description": "IPVersion to scan (4, 6).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "js_concurrency": {
+                    "type": "integer"
+                },
+                "json_export": {
+                    "description": "JSONExport file to export results in JSON format.",
+                    "type": "string"
+                },
+                "jsonl_export": {
+                    "description": "JSONLExport file to export results in JSONL format.",
+                    "type": "string"
+                },
+                "leave_default_ports": {
+                    "type": "boolean"
+                },
+                "list_headless_actions": {
+                    "type": "boolean"
+                },
+                "markdown_export": {
+                    "description": "MarkdownExport directory to export results in markdown format.",
+                    "type": "string"
+                },
+                "matcher_status": {
+                    "description": "MatcherStatus displays match failure status.",
+                    "type": "boolean"
+                },
                 "max_duration_min": {
                     "description": "Max total scan duration in minutes (1-1440, defaults to 120)",
                     "type": "integer"
@@ -1252,13 +1405,59 @@
                     "description": "Max errors per host before skipping it (1-1000, defaults to 30)",
                     "type": "integer"
                 },
+                "max_redirects": {
+                    "description": "Max number of redirects to follow (default 10)",
+                    "type": "integer"
+                },
                 "name": {
                     "description": "Unique profile name (1-191 characters)",
                     "type": "string"
                 },
+                "no_httpx": {
+                    "description": "Disable httpx probing for non-URL input",
+                    "type": "boolean"
+                },
+                "no_meta": {
+                    "description": "NoMeta disables printing result metadata in CLI output.",
+                    "type": "boolean"
+                },
+                "no_mhe": {
+                    "type": "boolean"
+                },
                 "oast": {
                     "description": "Enable OAST interaction callbacks",
                     "type": "boolean"
+                },
+                "omit_raw": {
+                    "description": "OmitRaw omits request/response pairs in JSON/JSONL/Markdown outputs.",
+                    "type": "boolean"
+                },
+                "omit_template": {
+                    "description": "OmitTemplate omits encoded template in JSON/JSONL output.",
+                    "type": "boolean"
+                },
+                "output_format": {
+                    "description": "Output format: jsonl (default), json, sarif",
+                    "type": "string"
+                },
+                "page_timeout": {
+                    "type": "integer"
+                },
+                "payload_concurrency": {
+                    "type": "integer"
+                },
+                "prefetch_secrets": {
+                    "description": "PrefetchSecrets prefetches secrets from the secrets file.",
+                    "type": "boolean"
+                },
+                "probe_concurrency": {
+                    "type": "integer"
+                },
+                "project": {
+                    "type": "boolean"
+                },
+                "project_path": {
+                    "type": "string"
                 },
                 "protocols": {
                     "description": "Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)",
@@ -1271,9 +1470,60 @@
                     "description": "Requests per second (1-10000, defaults to 50)",
                     "type": "integer"
                 },
+                "rate_limit_duration": {
+                    "type": "string"
+                },
+                "rate_limit_minute": {
+                    "description": "Rate Limiting / Performance",
+                    "type": "integer"
+                },
+                "redact": {
+                    "description": "Redact redact given list of keys from query parameter, request header and body.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "report_config": {
+                    "description": "ReportConfig nuclei reporting module configuration file.",
+                    "type": "string"
+                },
+                "report_db": {
+                    "description": "ReportDB nuclei reporting database.",
+                    "type": "string"
+                },
+                "required_only": {
+                    "description": "RequiredOnly uses only required fields in input format when generating requests.",
+                    "type": "boolean"
+                },
+                "response_size_read": {
+                    "type": "integer"
+                },
+                "response_size_save": {
+                    "type": "integer"
+                },
                 "retries": {
                     "description": "Retries per request (0-10, defaults to 1)",
                     "type": "integer"
+                },
+                "sarif_export": {
+                    "description": "SarifExport file to export results in SARIF format.",
+                    "type": "string"
+                },
+                "scan_all_ips": {
+                    "description": "ScanAllIPs scans all IPs associated with DNS record.",
+                    "type": "boolean"
+                },
+                "scan_strategy": {
+                    "description": "Scan Strategy\nScanStrategy: \"auto\", \"template-spray\", \"host-spray\"",
+                    "type": "string"
+                },
+                "secret_file": {
+                    "description": "Authentication\nSecretFile path to config file containing secrets for authenticated scans.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "severity": {
                     "description": "Only run templates of these severities",
@@ -1282,12 +1532,45 @@
                         "type": "string"
                     }
                 },
+                "show_browser": {
+                    "type": "boolean"
+                },
+                "skip_format_validation": {
+                    "description": "SkipFormatValidation skips format validation (like missing vars) when parsing input file.",
+                    "type": "boolean"
+                },
+                "stop_at_first_match": {
+                    "description": "Stop processing HTTP requests after the first match",
+                    "type": "boolean"
+                },
+                "store_response": {
+                    "description": "StoreResponse stores all request/response passed through nuclei to output directory.",
+                    "type": "boolean"
+                },
+                "store_response_dir": {
+                    "description": "StoreResponseDir custom directory to store responses (default \"output\").",
+                    "type": "string"
+                },
+                "stream": {
+                    "type": "boolean"
+                },
+                "system_chrome": {
+                    "type": "boolean"
+                },
+                "system_resolvers": {
+                    "description": "Use system DNS resolving as error fallback",
+                    "type": "boolean"
+                },
                 "tags": {
                     "description": "Only run templates with at least one of these tags",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "template_condition": {
+                    "description": "Complex expression to filter templates",
+                    "type": "string"
                 },
                 "template_ids": {
                     "description": "Restrict to these exact template IDs",
@@ -1300,9 +1583,33 @@
                     "description": "Per-request timeout in seconds (1-300, defaults to 10)",
                     "type": "integer"
                 },
+                "timestamp": {
+                    "description": "Timestamp enables printing timestamp in CLI output.",
+                    "type": "boolean"
+                },
+                "track_error": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "updated_at": {
                     "description": "Last update timestamp (read-only)",
                     "type": "string"
+                },
+                "workflow_urls": {
+                    "description": "WorkflowURLs list of workflow URLs to run.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "workflows": {
+                    "description": "Workflows\nWorkflows list of workflow or workflow directory to run.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1762,6 +2069,21 @@
         "internal_api.profileRequest": {
             "type": "object",
             "properties": {
+                "authors": {
+                    "description": "Only run templates by these authors",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "geeknik"
+                    ]
+                },
+                "basic_auth": {
+                    "description": "Basic auth username:password for authenticated scans",
+                    "type": "string",
+                    "example": "user:pass"
+                },
                 "bulk_size": {
                     "description": "Bulk size (1-500)",
                     "type": "integer",
@@ -1772,6 +2094,26 @@
                     "type": "integer",
                     "example": 25
                 },
+                "cookies": {
+                    "description": "Cookies sent with every request",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "session=abc123"
+                    ]
+                },
+                "custom_headers": {
+                    "description": "Custom headers passed with every request (header:value)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Authorization: Bearer xxx"
+                    ]
+                },
                 "custom_set": {
                     "description": "Name of an external custom template set directory",
                     "type": "string",
@@ -1781,6 +2123,26 @@
                     "description": "Optional description",
                     "type": "string",
                     "example": "External-facing web checks"
+                },
+                "exclude_protocols": {
+                    "description": "Exclude these protocol types",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "dns"
+                    ]
+                },
+                "exclude_severity": {
+                    "description": "Exclude templates of these severities",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "info"
+                    ]
                 },
                 "exclude_tags": {
                     "description": "Exclude templates carrying any of these tags",
@@ -1793,6 +2155,141 @@
                         "intrusive"
                     ]
                 },
+                "exclude_template_ids": {
+                    "description": "Exclude these exact template IDs",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "cve-2020-9999"
+                    ]
+                },
+                "exclude_templates": {
+                    "description": "ExcludeTemplates path to template file or directory to exclude",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "excluded/"
+                    ]
+                },
+                "follow_redirects": {
+                    "description": "Follow HTTP redirects for HTTP templates",
+                    "type": "boolean"
+                },
+                "headless": {
+                    "description": "Headless",
+                    "type": "boolean"
+                },
+                "headless_bulk_size": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "headless_concurrency": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "headless_options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "--no-sandbox"
+                    ]
+                },
+                "include_tags": {
+                    "description": "Include tags even if excluded by default or configuration",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "dos"
+                    ]
+                },
+                "include_templates": {
+                    "description": "Template filters\nIncludeTemplates path to template file or directory to be executed even if excluded",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "custom/"
+                    ]
+                },
+                "input_mode": {
+                    "description": "--- Input Formats ---\nInput mode: list (default), burp, jsonl, yaml, openapi, swagger",
+                    "type": "string",
+                    "example": "list"
+                },
+                "interactions_cache_size": {
+                    "type": "integer",
+                    "example": 5000
+                },
+                "interactions_cooldown_period": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "interactions_eviction": {
+                    "type": "integer",
+                    "example": 60
+                },
+                "interactions_poll_duration": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "interactsh_server": {
+                    "description": "Interactsh/OAST",
+                    "type": "string",
+                    "example": "oast.pro"
+                },
+                "interactsh_token": {
+                    "type": "string",
+                    "example": "xxx"
+                },
+                "ip_version": {
+                    "description": "IPVersion to scan (4, 6)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "4",
+                        "6"
+                    ]
+                },
+                "js_concurrency": {
+                    "type": "integer",
+                    "example": 120
+                },
+                "json_export": {
+                    "description": "JSONExport file to export results in JSON format",
+                    "type": "string",
+                    "example": "results.json"
+                },
+                "jsonl_export": {
+                    "description": "JSONLExport file to export results in JSONL format",
+                    "type": "string",
+                    "example": "results.jsonl"
+                },
+                "leave_default_ports": {
+                    "type": "boolean"
+                },
+                "list_headless_actions": {
+                    "type": "boolean"
+                },
+                "markdown_export": {
+                    "description": "MarkdownExport directory to export results in markdown format",
+                    "type": "string",
+                    "example": "report/"
+                },
+                "matcher_status": {
+                    "description": "MatcherStatus displays match failure status",
+                    "type": "boolean"
+                },
                 "max_duration_min": {
                     "description": "Max total scan duration in minutes (1-1440)",
                     "type": "integer",
@@ -1803,14 +2300,66 @@
                     "type": "integer",
                     "example": 30
                 },
+                "max_redirects": {
+                    "description": "Max number of redirects to follow (default 10)",
+                    "type": "integer",
+                    "example": 10
+                },
                 "name": {
                     "description": "Unique profile name",
                     "type": "string",
                     "example": "external-only"
                 },
+                "no_httpx": {
+                    "description": "Disable httpx probing for non-URL input",
+                    "type": "boolean"
+                },
+                "no_meta": {
+                    "description": "NoMeta disables printing result metadata in CLI output",
+                    "type": "boolean"
+                },
+                "no_mhe": {
+                    "type": "boolean"
+                },
                 "oast": {
                     "description": "Enable OAST interaction callbacks",
                     "type": "boolean"
+                },
+                "omit_raw": {
+                    "description": "OmitRaw omits request/response pairs in JSON/JSONL/Markdown outputs",
+                    "type": "boolean"
+                },
+                "omit_template": {
+                    "description": "OmitTemplate omits encoded template in JSON/JSONL output",
+                    "type": "boolean"
+                },
+                "output_format": {
+                    "description": "Output format: jsonl (default), json, sarif",
+                    "type": "string",
+                    "example": "jsonl"
+                },
+                "page_timeout": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "payload_concurrency": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "prefetch_secrets": {
+                    "description": "PrefetchSecrets prefetches secrets from the secrets file",
+                    "type": "boolean"
+                },
+                "probe_concurrency": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "project": {
+                    "type": "boolean"
+                },
+                "project_path": {
+                    "type": "string",
+                    "example": "/tmp/nuclei-project"
                 },
                 "protocols": {
                     "description": "Restrict to these protocols (http, dns, tcp, ssl, websocket, whois, javascript, workflow)",
@@ -1828,10 +2377,76 @@
                     "type": "integer",
                     "example": 50
                 },
+                "rate_limit_duration": {
+                    "type": "string",
+                    "example": "1m"
+                },
+                "rate_limit_minute": {
+                    "description": "Rate Limiting / Performance",
+                    "type": "integer",
+                    "example": 3000
+                },
+                "redact": {
+                    "description": "Redact redact given list of keys from query parameter, request header and body",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "password",
+                        "token"
+                    ]
+                },
+                "report_config": {
+                    "description": "ReportConfig nuclei reporting module configuration file",
+                    "type": "string",
+                    "example": "report.yaml"
+                },
+                "report_db": {
+                    "description": "ReportDB nuclei reporting database",
+                    "type": "string",
+                    "example": "report.db"
+                },
+                "required_only": {
+                    "description": "RequiredOnly uses only required fields in input format",
+                    "type": "boolean"
+                },
+                "response_size_read": {
+                    "type": "integer",
+                    "example": 4194304
+                },
+                "response_size_save": {
+                    "type": "integer",
+                    "example": 1048576
+                },
                 "retries": {
                     "description": "Retries per request (0-10)",
                     "type": "integer",
                     "example": 1
+                },
+                "sarif_export": {
+                    "description": "SarifExport file to export results in SARIF format",
+                    "type": "string",
+                    "example": "results.sarif"
+                },
+                "scan_all_ips": {
+                    "description": "ScanAllIPs scans all IPs associated with DNS record",
+                    "type": "boolean"
+                },
+                "scan_strategy": {
+                    "description": "Scan Strategy\nScanStrategy: auto, template-spray, host-spray",
+                    "type": "string",
+                    "example": "auto"
+                },
+                "secret_file": {
+                    "description": "Authentication\nSecretFile path to config file containing secrets",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "/path/to/secrets.yaml"
+                    ]
                 },
                 "severity": {
                     "description": "Only run templates of these severities",
@@ -1845,6 +2460,36 @@
                         "critical"
                     ]
                 },
+                "show_browser": {
+                    "type": "boolean"
+                },
+                "skip_format_validation": {
+                    "description": "SkipFormatValidation skips format validation",
+                    "type": "boolean"
+                },
+                "stop_at_first_match": {
+                    "description": "Stop processing HTTP requests after the first match",
+                    "type": "boolean"
+                },
+                "store_response": {
+                    "description": "Output enhancements\nStoreResponse stores all request/response passed through nuclei to output directory",
+                    "type": "boolean"
+                },
+                "store_response_dir": {
+                    "description": "StoreResponseDir custom directory to store responses (default \"output\")",
+                    "type": "string",
+                    "example": "output"
+                },
+                "stream": {
+                    "type": "boolean"
+                },
+                "system_chrome": {
+                    "type": "boolean"
+                },
+                "system_resolvers": {
+                    "description": "Use system DNS resolving as error fallback",
+                    "type": "boolean"
+                },
                 "tags": {
                     "description": "Only run templates with at least one of these tags",
                     "type": "array",
@@ -1855,6 +2500,11 @@
                         "cve",
                         "exposure"
                     ]
+                },
+                "template_condition": {
+                    "description": "Complex expression to filter templates",
+                    "type": "string",
+                    "example": "contains(id,'xss')"
                 },
                 "template_ids": {
                     "description": "Restrict to these exact template IDs",
@@ -1870,6 +2520,39 @@
                     "description": "Per-request timeout in seconds (1-300)",
                     "type": "integer",
                     "example": 10
+                },
+                "timestamp": {
+                    "description": "Timestamp enables printing timestamp in CLI output",
+                    "type": "boolean"
+                },
+                "track_error": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "standard"
+                    ]
+                },
+                "workflow_urls": {
+                    "description": "WorkflowURLs list of workflow URLs to run",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/workflow.yaml"
+                    ]
+                },
+                "workflows": {
+                    "description": "Workflows\nWorkflows list of workflow or workflow directory to run",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "workflows/"
+                    ]
                 }
             }
         },
