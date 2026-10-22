@@ -63,6 +63,7 @@ func (w *Worker) DiscoverTarget(ctx context.Context, targetID uint) {
 	opts := Options{
 		PortScope:   target.PortScope,
 		CustomPorts: target.CustomPorts,
+		ExcludeHosts: target.Exclude,
 		Rate:        w.cfg.DiscoveryRate,
 		TimeoutMs:   w.cfg.DiscoveryTimeoutMs,
 		ScanType:    w.cfg.NaabuScanType,
