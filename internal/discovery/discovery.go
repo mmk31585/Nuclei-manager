@@ -24,6 +24,20 @@ type Options struct {
 	ScanType    string
 	NaabuPath   string
 	HttpxPath   string
+	// ExcludeHosts are hosts, IPs or CIDRs to exclude from naabu scanning.
+	ExcludeHosts []string
+	// ExcludePorts are ports to exclude from naabu scanning.
+	ExcludePorts []string
+	// Retries is the number of retries for port scan (default 1 for speed).
+	Retries int
+	// SkipHostDiscovery skips host discovery (ping/probes) - useful when scanning IPs directly.
+	SkipHostDiscovery bool
+	// Verify validates open ports with TCP verification for accuracy.
+	Verify bool
+	// WarmUpTime is the time in seconds between scan phases.
+	WarmUpTime int
+	// ExcludeCDN skips full port scans for CDN/WAF (only scans 80,443).
+	ExcludeCDN bool
 }
 
 // Discoverer is the interface for port/service discovery.
@@ -87,6 +101,26 @@ func extractHost(raw string) string {
 	return raw
 }
 
+// isPort returns true when s is a plain numeric port (or comma-separated ports).
+func isPort(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return false
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Discover runs naabu then httpx and returns merged endpoints.
 func (d *discoverer) Discover(ctx context.Context, hosts []string, opts Options) ([]domain.Endpoint, error) {
 	if opts.NaabuPath == "" {
@@ -103,6 +137,9 @@ func (d *discoverer) Discover(ctx context.Context, hosts []string, opts Options)
 	}
 	if opts.ScanType == "" {
 		opts.ScanType = "c"
+	}
+	if opts.Retries == 0 {
+		opts.Retries = 1 // Default to 1 for faster scans
 	}
 
 	// Extract bare hosts from URLs
@@ -128,9 +165,23 @@ func (d *discoverer) Discover(ctx context.Context, hosts []string, opts Options)
 	}
 	hostFile.Close()
 
-	// Build naabu args
+	// Build naabu args. -n skips the nmap dependency (not available in the
+	// container), -sa uses system DNS resolution for reliability.
 	naabuArgs := []string{"-list", hostFile.Name(), "-rate", fmt.Sprintf("%d", opts.Rate),
-		"-timeout", fmt.Sprintf("%d", opts.TimeoutMs), "-json", "-silent", "-scan-type", opts.ScanType}
+		"-timeout", fmt.Sprintf("%d", opts.TimeoutMs), "-json", "-silent", "-scan-type", opts.ScanType,
+		"-n", "-sa", "-retries", fmt.Sprintf("%d", opts.Retries)}
+	if opts.SkipHostDiscovery {
+		naabuArgs = append(naabuArgs, "-Pn")
+	}
+	if opts.Verify {
+		naabuArgs = append(naabuArgs, "-verify")
+	}
+	if opts.WarmUpTime > 0 {
+		naabuArgs = append(naabuArgs, "-warm-up-time", fmt.Sprintf("%d", opts.WarmUpTime))
+	}
+	if opts.ExcludeCDN {
+		naabuArgs = append(naabuArgs, "-exclude-cdn")
+	}
 	switch opts.PortScope {
 	case "top100":
 		naabuArgs = append(naabuArgs, "-top-ports", "100")
@@ -138,8 +189,30 @@ func (d *discoverer) Discover(ctx context.Context, hosts []string, opts Options)
 		naabuArgs = append(naabuArgs, "-top-ports", "1000")
 	case "custom":
 		naabuArgs = append(naabuArgs, "-p", opts.CustomPorts)
-	case "all", "default":
-		naabuArgs = append(naabuArgs, "-top-ports", "full")
+	case "all":
+		// -p - scans all 65535 ports
+		naabuArgs = append(naabuArgs, "-p", "-")
+	case "default":
+		// Default: common web/dev ports
+		naabuArgs = append(naabuArgs, "-p", "80,443,8080,8443,3000,8000,5000,3001,5001,9000,9090")
+	}
+
+	// Split exclude entries: numeric = ports, everything else = hosts/IPs/CIDRs.
+	var excludeHosts, excludePorts []string
+	for _, e := range opts.ExcludeHosts {
+		if isPort(e) {
+			excludePorts = append(excludePorts, e)
+		} else {
+			excludeHosts = append(excludeHosts, e)
+		}
+	}
+	excludePorts = append(excludePorts, opts.ExcludePorts...)
+
+	if len(excludeHosts) > 0 {
+		naabuArgs = append(naabuArgs, "-exclude-hosts", strings.Join(excludeHosts, ","))
+	}
+	if len(excludePorts) > 0 {
+		naabuArgs = append(naabuArgs, "-exclude-ports", strings.Join(excludePorts, ","))
 	}
 
 	// Run naabu
@@ -149,11 +222,15 @@ func (d *discoverer) Discover(ctx context.Context, hosts []string, opts Options)
 	if err != nil {
 		// naabu may return exit code 1 even on partial success, check if we have output
 		if len(naabuOut) == 0 {
-			return nil, fmt.Errorf("naabu failed: %w", err)
+			return nil, fmt.Errorf("naabu failed (no output): %w", err)
 		}
 		slog.Debug("[sm] discovery: naabu returned error but has output", "err", err)
 	}
 	slog.Debug("[sm] discovery: naabu completed", "output_bytes", len(naabuOut))
+
+	if len(naabuOut) == 0 {
+		slog.Warn("[sm] discovery: naabu produced no output at all", "hosts", bareHosts, "port_scope", opts.PortScope)
+	}
 
 	// Parse naabu results
 	var openPorts []struct {
