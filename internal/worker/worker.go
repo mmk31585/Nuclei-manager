@@ -315,12 +315,36 @@ func (w *Worker) prepare(ctx context.Context, run *domain.Run) (*prepared, error
 		paths = []string{w.cfg.NucleiTemplatesDir}
 	}
 	webArgs, err := nuclei.BuildArgs(nuclei.Options{
-		TargetsFile: targetsPath, ExcludeHosts: exclude, TemplatePaths: paths,
-		TemplateIDs: p.TemplateIDs, Tags: p.Tags, ExcludeTags: p.ExcludeTags,
-		Severities: severities, Protocols: p.Protocols,
-		RateLimit: p.RateLimit, Concurrency: p.Concurrency, BulkSize: p.BulkSize,
-		TimeoutSec: p.TimeoutSec, Retries: p.Retries, MaxHostError: p.MaxHostError,
-		NoInteractsh: !p.OAST,
+		TargetsFile:          targetsPath,
+		ExcludeHosts:         exclude,
+		TemplatePaths:        paths,
+		TemplateIDs:          p.TemplateIDs,
+		ExcludeIDs:             p.ExcludeTemplateIDs,
+		Tags:                 p.Tags,
+		IncludeTags:          p.IncludeTags,
+		ExcludeTags:          p.ExcludeTags,
+		Severities:           severities,
+		ExcludeSeverity:      p.ExcludeSeverity,
+		Protocols:            p.Protocols,
+		ExcludeProtocols:     p.ExcludeProtocols,
+		Authors:              p.Authors,
+		RateLimit:            p.RateLimit,
+		Concurrency:          p.Concurrency,
+		BulkSize:             p.BulkSize,
+		TimeoutSec:           p.TimeoutSec,
+		Retries:              p.Retries,
+		MaxHostError:         p.MaxHostError,
+		NoInteractsh:         !p.OAST,
+		OutputFormat:         p.OutputFormat,
+		FollowRedirects:      p.FollowRedirects,
+		MaxRedirects:         p.MaxRedirects,
+		SystemResolvers:      p.SystemResolvers,
+		StopAtFirstMatch:     p.StopAtFirstMatch,
+		NoHttpx:              p.NoHttpx,
+		TemplateCondition:    p.TemplateCondition,
+		CustomHeaders:        p.CustomHeaders,
+		Cookies:              p.Cookies,
+		BasicAuth:            p.BasicAuth,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build nuclei arguments: %w", err)
@@ -336,12 +360,42 @@ func (w *Worker) prepare(ctx context.Context, run *domain.Run) (*prepared, error
 			protocols = []string{"tcp", "javascript"}
 		}
 		networkArgs, err = nuclei.BuildArgs(nuclei.Options{
-			TargetsFile: networkTargetsPath, ExcludeHosts: exclude, TemplatePaths: paths,
-			TemplateIDs: p.TemplateIDs, Tags: p.Tags, ExcludeTags: p.ExcludeTags,
-			Severities: severities, Protocols: protocols,
-			RateLimit: p.RateLimit, Concurrency: p.Concurrency, BulkSize: p.BulkSize,
-			TimeoutSec: p.TimeoutSec, Retries: p.Retries, MaxHostError: p.MaxHostError,
-			NoInteractsh: !p.OAST,
+			TargetsFile:          networkTargetsPath,
+			ExcludeHosts:         exclude,
+			TemplatePaths:        paths,
+			TemplateIDs:          p.TemplateIDs,
+			ExcludeIDs:             p.ExcludeTemplateIDs,
+			Tags:                 p.Tags,
+			IncludeTags:          p.IncludeTags,
+			ExcludeTags:          p.ExcludeTags,
+			Severities:           severities,
+			ExcludeSeverity:      p.ExcludeSeverity,
+			Protocols:            protocols,
+			ExcludeProtocols:     p.ExcludeProtocols,
+			Authors:              p.Authors,
+			RateLimit:            p.RateLimit,
+			Concurrency:          p.Concurrency,
+			BulkSize:             p.BulkSize,
+			TimeoutSec:           p.TimeoutSec,
+			Retries:              p.Retries,
+			MaxHostError:         p.MaxHostError,
+			NoInteractsh:         !p.OAST,
+			OutputFormat:         p.OutputFormat,
+			FollowRedirects:      p.FollowRedirects,
+			MaxRedirects:         p.MaxRedirects,
+			SystemResolvers:      p.SystemResolvers,
+			StopAtFirstMatch:     p.StopAtFirstMatch,
+			NoHttpx:              p.NoHttpx,
+			TemplateCondition:    p.TemplateCondition,
+			CustomHeaders:        p.CustomHeaders,
+			Cookies:              p.Cookies,
+			BasicAuth:            p.BasicAuth,
+
+			// --- New fields ---
+			InputMode:              p.InputMode,
+			RequiredOnly:           p.RequiredOnly,
+			SkipFormatValidation:   p.SkipFormatValidation,
+			ScanAllIPs:             p.ScanAllIPs,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("build nuclei network arguments: %w", err)
@@ -396,6 +450,7 @@ func (w *Worker) discoverEndpoints(ctx context.Context, snap domain.ConfigSnapsh
 		opts := w.cfg.DiscoveryOpts
 		opts.PortScope = snap.Target.PortScope
 		opts.CustomPorts = snap.Target.CustomPorts
+		opts.ExcludeHosts = snap.Target.Exclude
 		eps, err := w.cfg.Discovery.Discover(discoveryCtx, []string{host}, opts)
 		if err != nil {
 			slog.Warn("discovery: failed for host", "host", host, "err", err)
