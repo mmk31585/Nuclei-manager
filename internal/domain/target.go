@@ -66,7 +66,8 @@ func (t *Target) TargetScope() string {
 	case PortScopeCustom:
 		return t.CustomPorts
 	default:
-		return "-p 80,443"
+		// Common web + dev ports (includes 3000 for dev servers)
+		return "-p 80,443,8080,8443,3000,8000,5000,3001,5001,9000,9090"
 	}
 }
 
