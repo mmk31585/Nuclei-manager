@@ -174,3 +174,196 @@ func TestBuildArgsNoListFlagsWhenEmpty(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildArgsAuthenticatedScan(t *testing.T) {
+	o := Options{
+		TargetsFile:   "/tmp/targets.txt",
+		CustomHeaders: []string{"Authorization: Bearer xxx", "X-Custom: y"},
+		Cookies:       []string{"session=abc123", "token=xyz"},
+		BasicAuth:     "user:pass",
+		RateLimit:     50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+		Retries: 1, MaxHostError: 30,
+	}
+	args, err := BuildArgs(o)
+	if err != nil {
+		t.Fatalf("BuildArgs = err %v", err)
+	}
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"-header", "Authorization: Bearer xxx",
+		"-header", "X-Custom: y",
+		"-cookies", "session=abc123",
+		"-cookies", "token=xyz",
+		"-basic-auth", "user:pass"} {
+		if !containsFlag(args, want) {
+			t.Errorf("args missing %q; got %v", want, args)
+		}
+	}
+	if !strings.Contains(joined, "-basic-auth user:pass") {
+		t.Errorf("expected -basic-auth user:pass in %v", args)
+	}
+}
+
+func TestBuildArgsOutputFormat(t *testing.T) {
+	for _, tc := range []struct {
+		format string
+		want   string
+	}{
+		{"json", "-json"},
+		{"sarif", "-sarif"},
+		{"jsonl", ""}, // jsonl is default, already in base args
+		{"", ""},      // empty = default jsonl
+	} {
+		o := Options{
+			TargetsFile:   "/tmp/targets.txt",
+			OutputFormat:  tc.format,
+			RateLimit:     50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+			Retries: 1, MaxHostError: 30,
+		}
+		args, err := BuildArgs(o)
+		if err != nil {
+			t.Fatalf("BuildArgs format=%q = err %v", tc.format, err)
+		}
+		joined := strings.Join(args, " ")
+		if tc.want != "" && !strings.Contains(joined, tc.want) {
+			t.Errorf("format %q: expected flag %q in %v", tc.format, tc.want, args)
+		}
+		// jsonl should never emit -json or -sarif
+		if tc.format == "jsonl" || tc.format == "" {
+			if strings.Contains(joined, "-json ") || strings.Contains(joined, "-sarif ") {
+				t.Errorf("format %q: unexpected output format flag in %v", tc.format, args)
+			}
+		}
+	}
+}
+
+func TestBuildArgsInvalidOutputFormat(t *testing.T) {
+	o := Options{
+		TargetsFile:   "/tmp/targets.txt",
+		OutputFormat:  "csv",
+		RateLimit:     50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+		Retries: 1, MaxHostError: 30,
+	}
+	if _, err := BuildArgs(o); err == nil {
+		t.Errorf("expected error for invalid output format, got nil")
+	}
+}
+
+func TestBuildArgsScanBehavior(t *testing.T) {
+	o := Options{
+		TargetsFile:        "/tmp/targets.txt",
+		FollowRedirects:    true,
+		MaxRedirects:       5,
+		SystemResolvers:    true,
+		StopAtFirstMatch:   true,
+		NoHttpx:            true,
+		TemplateCondition:  "contains(id,'xss')",
+		RateLimit:          50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+		Retries: 1, MaxHostError: 30,
+	}
+	args, err := BuildArgs(o)
+	if err != nil {
+		t.Fatalf("BuildArgs = err %v", err)
+	}
+	for _, want := range []string{"-follow-redirects", "-max-redirects", "5",
+		"-system-resolvers", "-stop-at-first-match", "-no-httpx",
+		"-template-condition", "contains(id,'xss')"} {
+		if !containsFlag(args, want) {
+			t.Errorf("args missing %q; got %v", want, args)
+		}
+	}
+}
+
+func TestBuildArgsMaxRedirectsZero(t *testing.T) {
+	o := Options{
+		TargetsFile:   "/tmp/targets.txt",
+		MaxRedirects:  0,
+		RateLimit:     50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+		Retries: 1, MaxHostError: 30,
+	}
+	args, err := BuildArgs(o)
+	if err != nil {
+		t.Fatalf("BuildArgs = err %v", err)
+	}
+	joined := strings.Join(args, " ")
+	if strings.Contains(joined, "-max-redirects") {
+		t.Errorf("max-redirects=0 should not emit -max-redirects flag; got %v", args)
+	}
+}
+
+func TestBuildArgsTemplateFilters(t *testing.T) {
+	o := Options{
+		TargetsFile:          "/tmp/targets.txt",
+		ExcludeTemplateIDs:   []string{"cve-2020-9999", "cve-2019-8888"},
+		IncludeTags:          []string{"dos", "fuzz"},
+		ExcludeTags:          []string{"intrusive"},
+		ExcludeSeverity:      []string{"info"},
+		ExcludeProtocols:     []string{"dns"},
+		Authors:              []string{"geeknik"},
+		RateLimit:            50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+		Retries: 1, MaxHostError: 30,
+	}
+	args, err := BuildArgs(o)
+	if err != nil {
+		t.Fatalf("BuildArgs = err %v", err)
+	}
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"-exclude-id", "cve-2020-9999,cve-2019-8888",
+		"-include-tags", "dos,fuzz",
+		"-exclude-tags", "intrusive",
+		"-exclude-severity", "info",
+		"-exclude-type", "dns",
+		"-author", "geeknik"} {
+		if !containsFlag(args, want) {
+			t.Errorf("args missing %q; got %v", want, args)
+		}
+	}
+	if !strings.Contains(joined, "-exclude-id cve-2020-9999,cve-2019-8888") {
+		t.Errorf("expected -exclude-id with both IDs in %v", args)
+	}
+}
+
+func TestBuildArgsRejectsNew(t *testing.T) {
+	cases := []struct {
+		name string
+		opt  Options
+	}{
+		{"bad exclude template id", Options{ExcludeTemplateIDs: []string{"-x"}, TargetsFile: "/tmp/targets.txt",
+			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
+		{"bad exclude severity", Options{ExcludeSeverity: []string{"bad"}, TargetsFile: "/tmp/targets.txt",
+			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
+		{"bad exclude protocol", Options{ExcludeProtocols: []string{"code"}, TargetsFile: "/tmp/targets.txt",
+			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
+		{"bad author", Options{Authors: []string{"-x"}, TargetsFile: "/tmp/targets.txt",
+			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
+		{"max redirects too high", Options{MaxRedirects: 100, TargetsFile: "/tmp/targets.txt",
+			RateLimit: 50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10, Retries: 1, MaxHostError: 30}},
+	}
+	for _, tc := range cases {
+		if _, err := BuildArgs(tc.opt); err == nil {
+			t.Errorf("%s: expected error, got nil", tc.name)
+		}
+	}
+}
+
+func TestBuildArgsNoForbiddenFlagsNew(t *testing.T) {
+	o := Options{
+		TargetsFile:   "/tmp/targets.txt",
+		CustomHeaders: []string{"X-Forwarded-For: 127.0.0.1"},
+		Cookies:       []string{"session=abc"},
+		BasicAuth:     "u:p",
+		RateLimit:     50, Concurrency: 25, BulkSize: 25, TimeoutSec: 10,
+		Retries: 1, MaxHostError: 30,
+	}
+	args, err := BuildArgs(o)
+	if err != nil {
+		t.Fatalf("BuildArgs = err %v", err)
+	}
+	joined := strings.Join(args, " ")
+	forbidden := []string{"-code", "-headless", "-dast", "-fuzz", "-lfa",
+		"-allow-local-file-access", "-env-vars", "-update-templates", "-update", "-reset", "-sandbox"}
+	for _, f := range forbidden {
+		if strings.Contains(joined, f+" ") || strings.HasSuffix(joined, f) {
+			t.Errorf("forbidden flag %q present in args %v", f, args)
+		}
+	}
+}
